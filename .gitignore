@@ -1,0 +1,28 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual environments — never committed; requirements are the reproducible
+# artefact, not the installed tree.
+.venv/
+venv/
+env/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local environment. Connection parameters are supplied by the deployment and
+# have no code-side default; a committed .env is how that rule gets quietly
+# reversed.
+.env
+*.env
+
+# OS
+Thumbs.db
+.DS_Store
