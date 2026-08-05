@@ -61,6 +61,33 @@ Best practice cleanly separates three concerns, and ESB/IG implements all three 
 3. **(½) Product↔product data over a shared database** — see §3; a **conditional** carve-out that is
    the subject of the one flagged decision.
 
+> ### ⚑ Residency binds all three planes — added 2026-08-05
+>
+> **This document carried no residency requirement at all until now**, and that absence was the
+> finding: a compatibility review searched this repository for `residency` and `placement` and got
+> **zero matches**. An absence contradicts nothing, so nothing signalled that anything was missing.
+>
+> **Settled by [CTM ADR-0022](../../CTM/docs/adr/0022-residency-is-required-in-every-plane-and-a-queued-message-is-a-placement.md)**,
+> recorded here in the same act:
+>
+> - **Every plane resolves residency before it holds, routes or transforms a client's payload —
+>   gateway, CIG and broker alike — and refuses when it cannot.** A requirement, not guidance, and
+>   **not** scoped to the gateway merely because that is where egress is most visible.
+> - **A queued message is a placement.** A broker holding a STRICT client's payload outside that
+>   client's placement set is a residency violation, not transit. The reasoning is not new:
+>   [CTM ADR-0009](../../CTM/docs/adr/0009-residency-is-a-per-tenant-profile.md) already rejected a
+>   bounded-TTL carve-out for **caches** on the ground that *"at rest for five minutes in an unnamed
+>   jurisdiction is still at rest there."* A queue is that claim with a different verb, so deciding
+>   otherwise would mean overturning ADR-0009 rather than scoping this.
+> - **The split of duty:** CTM **publishes** the per-tenant residency profile and placement set
+>   through its resolving seam — in-process, from cache, no network call (N2), and it **raises**
+>   rather than returning an empty set when it cannot resolve. ESB/IG **enforces**. A published
+>   profile that no plane consults is not-run at the estate level.
+>
+> **Status: specified, not built.** ESB/IG has no code, so this is a requirement waiting for a plane
+> to carry it, and no detector exists on either side for the cross-plane claim. Recorded as a known
+> gap rather than as a control the estate now has.
+
 ---
 
 ## 3. ⚑ The mediation rule — "all APIs & integrations through ESB/IG" ([T02](tickets/02-all-apis-through-esb-ig.md))
@@ -253,6 +280,31 @@ Outbound mediation. New integrations are **configuration, not code**:
 Fail-closed by default. Grounded in OWASP SSRF Prevention, PortSwigger, and Stripe/Svix/GitHub
 webhook guidance.
 
+> **Scope clarified 2026-08-05 — this guard governs *mediated* egress, and the estate has one caller
+> it must not govern.** [CTM ADR-0018](../../CTM/docs/adr/0018-esb-ig-owns-mediated-egress-ctm-owns-what-it-does-not-mediate.md)
+> records **ESB/IG as the owner of everything leaving through the CIG** — webhooks, Translation,
+> external systems — on the strength of `T04`, closed 2026-07-24. CTM charted the same ownership
+> question as *open* eleven days later, having not found that this repository had answered it; that
+> is recorded in the ADR as the first identified instance of a decision landing in one repository
+> only.
+>
+> **The clarification that matters technically:** the rule below blocks **RFC1918**, and CTM's
+> secrets-store adapter calls an **in-estate** host. Applied to that caller this guard would refuse
+> every correct deployment. It is therefore **two named controls over one network posture**, split on
+> whether the call is mediated —
+>
+> | | Owner | Control |
+> |---|---|---|
+> | **Mediated** (through the CIG) | ESB/IG | the guard below |
+> | **Unmediated** (a direct CTM call) | CTM | single-origin pin, redirects off, pinned private CA |
+>
+> — not one mechanism with a mode switch, which is a fail-open waiting to be configured. **`SEC-APP-03`
+> is owned here, specified here, and not built anywhere**; CTM's control catalogue recorded it as
+> *Implemented*, which was false, and is being corrected on their side.
+>
+> **Line 280's `application_id` → `application_code` correction is an envelope change only** — the
+> `application_id` references in this document that name a **table column** are correct and unchanged.
+
 **SSRF egress guard (SEC-APP-03) — on every outbound call:**
 - **Egress allow-list, deny by default** (LOV-configured destinations — no hardcoded hosts).
 - **Parse-then-compare the resolved IP** (defeats decimal/octal/hex/IPv6-mapped encodings).
@@ -277,11 +329,28 @@ webhook guidance.
 ## 9. Broker plane (adopted from the seed)
 
 **RabbitMQ**, self-hosted in-estate, **priority P0/P1/P2 + per-channel DLQ**. Wire contract = the
-**10-field envelope** (`event_id, type, version, occurred_at, correlation_id, application_id,
-tenant_id, producer, priority, payload`). Semantics: **at-least-once** (never exactly-once) · dedupe
+**10-field envelope** (`event_id, type, version, occurred_at, correlation_id, application_code,
+tenant_alias, producer, priority, payload`). Semantics: **at-least-once** (never exactly-once) · dedupe
 on `event_id` · per-channel DLQ · **per-tenant/per-type ordering only** (global order ⇒ command, not
 event) · additive schema evolution within a version; consumers upgrade before producers. Redis stays
 cache/result-backend only.
+
+> **Two field names corrected 2026-08-05 — `application_id` → `application_code`, `tenant_id` →
+> `tenant_alias`.** This document and CTM's implementation had ratified **different tens**. Settled by
+> [CTM ADR-0016](../../CTM/docs/adr/0016-the-envelope-carries-codes-not-row-ids.md) in favour of the
+> codes, on the platform rule that **boundaries carry codes, never row ids**: the alias is unique,
+> immutable and public, so a consumer can act on it **without calling back into CTM** — which is the
+> whole reason codes travel, and is what a row id cannot do without breaching N2.
+>
+> **This is an envelope change only.** `application_id` stays correct everywhere it appears in this
+> document as a **table column** (the application dimension every sub-system table carries). Those
+> references are deliberately unchanged.
+>
+> A compatibility assessment read CTM's then-stale `CLAUDE.md` §7, concluded the alias had nowhere to
+> travel, and ranked the mismatch a **blocking** integration defect, recommending the alias be carried
+> inside the payload. That would have reverted a shipped CTM migration
+> (`c0008_outbox_carries_the_alias`) to solve a problem that did not exist. The corrected premise is
+> in the ADR.
 
 > **Broker-plane ownership — ✅ CLOSED 2026-07-24 by the NC effort.** Both NC (L3 pub-sub) and ESB/IG
 > (L4 broker plane) reference a broker; this was left as fog to avoid pre-empting the then-uncharted
@@ -319,8 +388,32 @@ mediation point (SEC-EVT-01), not retrofitted.
 One-way domain — ESB/IG never depends on a consumer application (N3), enforced as build gate + DB
 grants · off the in-process hot path (N2) · `application_id` on every table · **no card data (N8)** ·
 no tenant-facing orchestration product (N9) · edge gateway is the infrastructure plane, not ESB/IG ·
-fail **closed** on unresolved identity, missing config, unavailable secret · **latency floor: added
-p95 < 15 ms** (build gate).
+fail **closed** on unresolved identity, missing config, unavailable secret · **residency resolved in
+every plane before a payload is held, routed or transformed, and refused when it cannot be** (§2,
+[CTM ADR-0022](../../CTM/docs/adr/0022-residency-is-required-in-every-plane-and-a-queued-message-is-a-placement.md)) ·
+**latency floor: added p95 < 15 ms** (build gate).
+
+> **Two estate conventions ratified 2026-08-05, recorded here because this document is bound by both
+> and neither changes anything it currently says.**
+>
+> - **Identifiers are bare, and a bare identifier is platform-owned** —
+>   [CTM ADR-0023](../../CTM/docs/adr/0023-bare-identifiers-are-platform-owned.md). `SEC-APP-03`,
+>   `SEC-NET-06` and `MREQ` as used throughout this document are **already** the ratified form; no
+>   `ESB-` or `CTM-` prefix is adopted on either side. The trigger to revisit is a **second
+>   sub-system publishing its own series under the same stem**, at which point the newcomer prefixes
+>   and the platform's bare series stays bare. Whoever builds the identifier crosswalk owes the
+>   **`DBROLE` row-by-row reconciliation** — nine rows against ten, and a crosswalk keyed on number
+>   maps some rows to the wrong control and drops one silently.
+> - **The five recommended tools are decided by name** —
+>   [CTM ADR-0024](../../CTM/docs/adr/0024-the-five-recommended-tools-decided-by-name.md). Rejected:
+>   **Open Policy Agent** (CTM's `placement.py` is a built, fail-closed, 80-test enforcement point;
+>   OPA would replace it with an unbuilt one and add a runtime against a p95 < 2 ms budget), **Kafka
+>   Schema Registry** (Kafka-coupled; this estate's broker is RabbitMQ 4, and AsyncAPI covers the same
+>   concern broker-agnostically), and **Docker as the distribution mechanism for the conformance
+>   double** (the double's value is that it is in-process and needs nothing). Adopted narrowly:
+>   **AsyncAPI**, *derived from the envelope's field set and never hand-written* — and **gated on a
+>   licence read that has not happened**. Deferred: **Dependabot/Renovate**, whose named trigger is
+>   whether the tool can read `pylock.toml` (PEP 751) at all.
 
 ---
 
