@@ -6,13 +6,30 @@ in a subfolder is implementation and nobody else's business.
 
 ```
 backend/
+  __init__.py       ← makes `backend` the packages root. A docstring, nothing else.
   <name>/
     __init__.py     ← an entry point (public). Import this from outside.
     publish.py      ← another entry point. A package may expose SEVERAL.
     lib/            ← implementation: hidden from outside, free to import itself
-  tests/            ← the test tree
+  tests/            ← the test tree. No `__init__.py`; read its README before deleting it
   README.md         ← this file
 ```
+
+## The three names
+
+| | |
+|---|---|
+| distribution | `esb-ig` — `pyproject.toml`'s `[project] name` |
+| package directory | `backend/esb_ig/` |
+| dotted import path | `backend.esb_ig` |
+
+The third is **not** a choice `pyproject.toml` makes — it is already fixed here and in
+`scripts/check_boundary.py` (`PACKAGES_ROOT = "backend"`). CTM's `check_graduation.py`
+rewrites `backend.` to a destination-chosen root on its relocation dry-run, so the
+packages-root name is the move's **one free variable**, and this repository has already spent
+it on `backend`, exactly as CTM does. Nothing here is pip-installed and there is no
+`[build-system]`: `backend.*` is importable because CI puts the workspace on `PYTHONPATH`,
+which is how CTM's runner does it too.
 
 Run the gate — it is blocking, and a red gate is the only enforcement this repo has
 (no branch protection, platform `CLAUDE.md` §12):
@@ -22,8 +39,16 @@ python scripts/check_boundary.py            # exits 1 on any finding
 python scripts/check_boundary.py --json     # machine-readable, for CI evidence
 ```
 
-The tree is empty today; the gate runs clean against nothing and starts biting the moment the
-first package lands in Phase A. Copy the worked template at `..\..\CTM\backend\example\`.
+The tree holds no package today; the gate runs clean against nothing and starts biting the
+moment the first one lands. Copy the worked template at `..\..\CTM\backend\example\`.
+
+**What lands here is `esb_ig`, and it is not written from scratch.** The seed lives at
+`..\..\CTM\backend\esb_ig\` — envelope, broker protocol, in-memory adapter, RabbitMQ
+transport — and graduates under CTM's **W2-T10**. That move is a separate step done by
+somebody else; nothing is copied ahead of it, because a stub module is dead code this gate
+would then have to reason about. What is in place ahead of it is everything the move should
+not have to also build: the packages root, the test tree, the toolchain configuration, and a
+CI runner with a broker already on it.
 
 ## The four rules
 

@@ -1,0 +1,118 @@
+### ESB/IG sub-system — project and toolchain configuration.
+#
+# NAMES, stated here so nobody re-derives them from three files:
+#
+#   distribution        esb-ig          (this file's `[project] name`)
+#   package directory   backend/esb_ig/
+#   dotted import path  backend.esb_ig
+#
+# The third is NOT a free choice made here — it is already committed in two
+# places: `scripts/check_boundary.py` sets `PACKAGES_ROOT = "backend"`, and
+# `backend/README.md` writes every example import as `backend.<name>`. CTM's
+# `scripts/check_graduation.py` rewrites `backend.` to a destination-chosen root
+# on the relocation dry-run, so the packages-root name is the move's one free
+# variable — and this repository has already spent it on `backend`, exactly as
+# CTM does. A second answer here would make the boundary gate scan a tree the
+# imports do not name.
+#
+# NO `[build-system]`, deliberately, and it mirrors CTM's own pyproject.toml.
+# Nothing in this repository is pip-installed: `backend.*` is importable because
+# CI puts the workspace on PYTHONPATH, which is how CTM's runner does it too.
+# Declaring a backend would force an answer to "what top-level package does
+# `esb-ig` ship?", and today the honest answer is `backend` — a name generic
+# enough to collide with CTM's. That question belongs to the graduation (W2-T10),
+# not to bring-up.
+
+[project]
+name = "esb-ig"
+version = "0.1.0"
+description = "ESB/IG sub-system — the L4 mediation point: gateway and broker planes"
+# CTM's CI runs 3.11.16 and this string is CTM's verbatim. The two trees are read
+# together and moved between; a floor that differs by a digit is a difference
+# somebody has to investigate before they can rule it harmless.
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+# The AMQP driver for the broker plane. `pika` is what CTM's
+# `backend/esb_ig/lib/rabbitmq.py` imports — read from that file, not assumed —
+# and the major is pinned to CTM's floor (`requirements.txt`: `pika>=1.3`; the
+# audited lock resolves 1.4.2). The upper bound stops a 2.x release changing the
+# driver under a suite that has not arrived yet.
+#
+# IT IS AN EXTRA AND NOT A RUNTIME DEPENDENCY because CTM's module makes the
+# driver import GUARDED AND LAZY: `import backend.esb_ig` must succeed with no
+# AMQP client installed, so a missing driver surfaces at connect time as
+# `BrokerUnavailableError` rather than as an ImportError that takes the package
+# down. The in-memory adapter and every semantic test need nothing.
+#
+# CI DOES NOT INSTALL IT. Nothing in this tree imports it yet, and installing a
+# dependency no code reaches would make the extra read as exercised.
+broker = ["pika>=1.3,<2"]
+
+# The toolchain CI installs. It is read OUT OF THIS TABLE by the workflow rather
+# than restated there — a second list of the same packages is a second rendering
+# that can disagree with this one.
+#
+# `ruff` is pinned EXACTLY, and it is the only exact pin here. A formatter is the
+# one tool whose output is its verdict: `ruff format --check` compares against
+# whatever the installed version would produce, so an unpinned formatter makes a
+# blocking lane's result depend on release timing rather than on the code. The
+# linter's rule set moves for the same reason.
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "ruff==0.15.16",
+]
+
+# ── ruff ─────────────────────────────────────────────────────────────────────
+# Copied from CTM's pyproject.toml so the suite that moves here under W2-T10
+# lands on the rules it was written against. A rule that fires in one tree and
+# not the other is read as a defect in the code rather than as a config drift.
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# E/F/W/I/N/UP = baseline. B/C4/PIE/RET add the high-signal correctness families.
+# S (bandit) is deliberately absent — it runs as its own lane; duplicating it doubles the noise.
+# RUF001-003 (ambiguous-unicode) stay off: this platform is bilingual EN/AR, so Arabic text
+# makes them permanent false positives. Matches CTM and IAM, deliberately.
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PIE", "RET", "RUF005", "RUF012"]
+ignore = ["E501"]  # line length is the formatter's job
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom puts these in argument defaults on purpose.
+extend-immutable-calls = [
+    "fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Header",
+    "fastapi.Body", "fastapi.Form", "fastapi.Security",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/tests/*" = ["S101"]
+
+# ── pytest ───────────────────────────────────────────────────────────────────
+# `testpaths` names a directory that must EXIST even while it is empty: pytest
+# exits 4 (usage error) on a missing testpath and 5 (no tests collected) on an
+# empty one, and only the second is the answer the CI lane knows how to read as
+# NOT-RUN. `backend/tests/README.md` is what keeps the directory in git.
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+markers = [
+    "needs_broker: requires RabbitMQ via ESB_IG_TEST_BROKER_URL; CI asserts these do NOT skip",
+    "slow: reaches a network service; deselect with -m 'not slow' for a fast inner loop",
+]
+# Coverage floor starts at 0 and is raised as the suite grows. A floor set above
+# the measured figure before there is a suite to measure produces a permanently
+# red gate that people learn to ignore (CTM ticket 01).
+addopts = [
+    "--cov=backend",
+    "--cov-report=term-missing",
+    "--cov-fail-under=0",
+]
+
+[tool.coverage.run]
+source = ["backend"]
+omit = ["backend/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]
