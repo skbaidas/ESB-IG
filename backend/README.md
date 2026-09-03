@@ -55,10 +55,13 @@ python scripts/check_boundary.py            # exits 1 on any finding
 python scripts/check_boundary.py --json     # machine-readable, for CI evidence
 ```
 
-The tree holds no package today; the gate runs clean against nothing and starts biting the
-moment the first one lands. Copy the worked template at `..\..\CTM\backend\example\`.
+The tree holds **one** package, `esb_ig`, and it publishes nothing — an `__init__.py` with an
+empty `__all__` and no imports. It exists so the packaging contract is *executable*: with no
+package there is nothing to install, and CI's install-and-import proof would be NOT-RUN,
+which under §11.3 catches nothing on the one claim whose failure surfaces on move day.
+Copy the worked template at `..\..\CTM\backend\example\` when adding a second.
 
-**What lands here is `esb_ig`, and it is not written from scratch.** The seed lives at
+**What lands in `esb_ig` is not written from scratch.** The seed lives at
 `..\..\CTM\backend\esb_ig\` — envelope, broker protocol, in-memory adapter, RabbitMQ
 transport — and graduates under CTM's **W2-T10**. That move is a separate step done by
 somebody else; nothing is copied ahead of it, because a stub module is dead code this gate
