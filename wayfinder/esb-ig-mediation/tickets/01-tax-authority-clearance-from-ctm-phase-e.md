@@ -211,6 +211,11 @@ with no connector at all. Different purposes, both needed.
 inheriting the pattern from `InMemoryBroker`, exported from `backend.esb_ig` alongside the protocol.
 CTM will not build one.
 
+> **`backend.esb_ig` names CTM's tree today, not the name a consumer will write.** This
+> repository builds its `backend/esb_ig/` source as top-level **`esb_ig`**, so the double is
+> `esb_ig`'s once the seed graduates. Recorded here rather than left to be inherited — see
+> `pyproject.toml` for the measured reason the `backend.` prefix cannot survive installation.
+
 ### Shape constraints on CTM, as `PE10` asked for
 
 - Idempotency/business key: **CTM's**, on every submission.

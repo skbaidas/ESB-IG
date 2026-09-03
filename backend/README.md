@@ -15,21 +15,37 @@ backend/
   README.md         ← this file
 ```
 
-## The three names
+## The three names — and the source layout is not the import name
 
 | | |
 |---|---|
 | distribution | `esb-ig` — `pyproject.toml`'s `[project] name` |
-| package directory | `backend/esb_ig/` |
-| dotted import path | `backend.esb_ig` |
+| source directory | `backend/esb_ig/` — this tree, what the boundary gate scans |
+| **distributed import** | **`esb_ig`** — top-level, what a consumer writes |
 
-The third is **not** a choice `pyproject.toml` makes — it is already fixed here and in
-`scripts/check_boundary.py` (`PACKAGES_ROOT = "backend"`). CTM's `check_graduation.py`
-rewrites `backend.` to a destination-chosen root on its relocation dry-run, so the
-packages-root name is the move's **one free variable**, and this repository has already spent
-it on `backend`, exactly as CTM does. Nothing here is pip-installed and there is no
-`[build-system]`: `backend.*` is importable because CI puts the workspace on `PYTHONPATH`,
-which is how CTM's runner does it too.
+**This table read `dotted import path │ backend.esb_ig` until 2026-09-03, and that was
+wrong in a way only the graduation would have found.** CTM ships `backend/__init__.py`,
+which makes `backend` a **regular** package rather than a PEP 420 namespace package. Python
+then fixes `backend.__path__` to CTM's own directory and never searches the rest of
+`sys.path` for `backend.*` submodules — so an installed distribution providing
+`backend/esb_ig/` is simply unreachable from inside CTM, and every
+`from backend.esb_ig import ...` in CTM's `backend/wiring/` would fail the day CTM deletes
+its seed and pins this repository. The graduation would not build. The reasoning and the
+measured `ImportError` are in `pyproject.toml`, and CI **re-measures both on every run**.
+
+**The tree keeps `backend/` and nothing in this file changes because of it.** A source
+layout and a distributed import name are two different choices; the mistake was treating
+them as one. `pyproject.toml` maps `backend/esb_ig/` onto top-level `esb_ig` for the build
+only, so `PACKAGES_ROOT = "backend"` in `scripts/check_boundary.py` stays correct — it
+describes the tree, which is what that gate reads.
+
+**What this costs the move, and it is not nothing:** intra-package imports must be
+**relative** (`from .envelope import Envelope`). A relative import resolves under *both*
+names, which is what makes these two choices independent rather than merely reconciled.
+CTM's copies currently import each other absolutely as `from backend.esb_ig.envelope import
+...`, and that spelling cannot survive installation — once the directory is
+`site-packages/esb_ig/` there is no `backend` above it. So the move **does** carry an import
+rewrite, and an earlier note here claiming otherwise was the same error in another place.
 
 Run the gate — it is blocking, and a red gate is the only enforcement this repo has
 (no branch protection, platform `CLAUDE.md` §12):

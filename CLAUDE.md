@@ -43,14 +43,25 @@ interface is its **root modules**; anything in a subfolder is implementation and
 imported from outside. Read [`backend/README.md`](./backend/README.md) before adding or
 importing a package.
 
-**The three names**, so nobody re-derives them: distribution `esb-ig` · package directory
-`backend/esb_ig/` · dotted import path **`backend.esb_ig`**. Nothing is pip-installed and
-there is no `[build-system]`; `backend.*` is importable off `PYTHONPATH`, as in CTM.
+**The source layout is not the import name**, and they are stated separately because
+conflating them was a real defect: distribution `esb-ig` · source directory `backend/esb_ig/`
+· **distributed import `esb_ig`** (top-level). A consumer writes `import esb_ig`, never
+`import backend.esb_ig` — CTM's own `backend/__init__.py` makes `backend` a *regular* package,
+so its `__path__` is fixed to CTM's directory and an installed distribution providing
+`backend/esb_ig/` is never searched for. `pyproject.toml` carries the measured `ImportError`;
+CI **re-measures it every run** alongside a clean-venv install-and-import proof. The tree
+keeps `backend/`, so `PACKAGES_ROOT = "backend"` in the boundary gate stays correct — it
+describes the tree, which is what that gate reads.
+
+**The move carries an import rewrite**: intra-package imports must be **relative**
+(`from .envelope import Envelope`), because an absolute `from backend.esb_ig.x import y`
+cannot resolve once the directory is `site-packages/esb_ig/`.
 
 | Purpose | Command | Status |
 |---|---|---|
 | **Boundary gate** (N3 · deep modules · no cycles) | `python scripts/check_boundary.py` | **Live — blocking.** `--json` prints to **stdout**; redirect it for evidence |
 | **Catalogue gate** (envelope · axis rule) | `python scripts/check_catalogue.py` | **Live — blocking.** `--json` **writes** `evidence/gate-catalogue.json`. Exit 2 is a control failure, not a finding |
+| **Distributed import name** | *(CI only — see below)* | **Live — blocking.** Installs this project into a **clean virtualenv**, runs from a directory that is **not** the repo root with `PYTHONPATH` cleared, and requires `esb_ig.__file__` to resolve inside site-packages. All three conditions are load-bearing: drop any one and the source tree answers the import and the lane passes for the wrong reason. Mutation-checked in both directions. Artefact `gate-import-name.json` |
 | **Lint** | `python -m ruff check backend scripts` | **Live — blocking.** Rules are CTM's, copied into `pyproject.toml` |
 | **Format** | `python -m ruff format --check backend scripts` | **Live — blocking.** Drop `--check` to apply. `ruff` is pinned **exactly** in the `dev` extra: a formatter's output is its verdict |
 | **Tests** | `python -m pytest -q` | **NOT-RUN — there is no suite.** `backend/tests/` is empty, pytest exits **5**, and CI renders that as NOT-RUN, which §11.3 says is not a pass. Self-retiring: the first `test_*.py` makes the lane blocking with no configuration change |
