@@ -160,6 +160,18 @@ extend-immutable-calls = [
 # NOT-RUN. `backend/tests/README.md` is what keeps the directory in git.
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
+
+# THE LOAD-BEARING LINE, and it is what keeps this repository to ONE import
+# spelling. `backend/` on the test path makes the source tree importable as
+# `esb_ig` — the same name the built distribution publishes — so a test reads
+# `from esb_ig.envelope import Envelope` whether it is run against the tree or
+# against an installed wheel. Without it the only in-tree spelling is
+# `backend.esb_ig`, which is precisely the name that cannot survive
+# installation, and the suite would be written against a name no consumer can
+# use. That is the same defect as the one `pyproject.toml`'s header records, one
+# layer down, and it would have arrived with the moved suite.
+pythonpath = ["backend"]
+
 markers = [
     "needs_broker: requires RabbitMQ via ESB_IG_TEST_BROKER_URL; CI asserts these do NOT skip",
     "slow: reaches a network service; deselect with -m 'not slow' for a fast inner loop",
@@ -167,6 +179,19 @@ markers = [
 # Coverage floor starts at 0 and is raised as the suite grows. A floor set above
 # the measured figure before there is a suite to measure produces a permanently
 # red gate that people learn to ignore (CTM ticket 01).
+#
+# `--cov=backend` IS A PATH, NOT AN IMPORT NAME, and the distinction is the whole
+# of this note. It measures every `.py` under `backend/` regardless of what those
+# files import as, so it needs no row per package and stays right when a second
+# one lands — the enumeration is the tree's (ADR-0015). What it PINS is that
+# **the suite runs against the SOURCE TREE**, which `pythonpath` above is what
+# makes possible.
+#
+# THE DAY THAT CHANGES, THIS MUST CHANGE WITH IT. If the suite is ever pointed at
+# an INSTALLED distribution, the files are under `site-packages/esb_ig/`, nothing
+# is under `backend/`, and this reports 0% over a green suite — which reads as a
+# coverage-tool problem and is a layout problem. `--cov=esb_ig` is the spelling
+# for that world.
 addopts = [
     "--cov=backend",
     "--cov-report=term-missing",

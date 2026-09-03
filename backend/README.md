@@ -90,6 +90,23 @@ mutation, and prior-art path literals.
 **4. No cycles.** No package-level dependency cycle. Packages in a cycle cannot be understood,
 tested, or moved independently.
 
+## A named gap the move must close, not inherit
+
+**Once intra-package imports are relative — and they must be, see above — detectors 6-8 see
+nothing inside a package.** They resolve an import against `PACKAGES_ROOT = "backend"`, and a
+relative import carries no such prefix. Rule 2 says a package's own files may import each
+other however they like, so *for intra-package imports that silence is correct*. What is not
+covered is the case a second package creates: a cross-package import written the way an
+installed consumer would write it (`from other_pkg.lib.x import y`) is invisible to
+`private-import`, `domain-crossing` and `import-cycle` alike, because it does not begin with
+`backend.`.
+
+There is nothing to catch today — `esb_ig` is the only package and it imports nothing. It is
+recorded here rather than discovered later, because a blocking gate that reaches no import in
+the code that has just arrived is exactly the "green because nothing happened" shape the
+platform's §11.3 is about. **Owner: the W2-T10 move**, which is when both preconditions — real
+intra-package imports, and eventually a second package — first exist.
+
 ## No barrel files
 
 An entry point is a **small, curated surface**, not a re-export of a whole subtree. Do not write
