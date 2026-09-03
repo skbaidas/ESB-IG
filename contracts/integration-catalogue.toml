@@ -17,10 +17,15 @@
 # THE CONTRACT IS THE ENUMERATION, NEVER THE COUNT (CTM ADR-0015). There is no total in this
 # file and none may be added.
 #
-# WHAT NO GATE HERE READS. This repository has no CI (owed by CTM's W2-T10, the graduation).
-# scripts/check_catalogue.py runs by hand and nothing runs it on a push. Under CTM
-# CLAUDE.md 11.3 that makes the instrument NOT-RUN as a lane, which is not a pass — it is
-# recorded here rather than left for a reader to discover.
+# WHAT THE GATE READING THIS PROVES, AND WHAT IT DOES NOT. scripts/check_catalogue.py is a
+# BLOCKING lane on every push since 2026-09-03 (.github/workflows/ci.yml; first green run
+# 33750045456). These lines read "This repository has no CI ... NOT-RUN as a lane, which is
+# not a pass" until that landed, and were corrected in the same commit rather than after it.
+#
+# The narrower claim that replaces it: a green says this file still encodes the axis rule and
+# the frozen envelope enumeration. It says nothing about a producer, a transport, a gateway or
+# a handler — none of which exist in this tree — and nothing about CTM's half of the dual
+# record, which by design nothing here reads.
 
 [catalogue]
 adopted = "2026-09-03"
@@ -201,10 +206,14 @@ CTM's four ctm.tenant.* producers were HELD pending this adoption and are not ye
 Adopting the name does not emit an event, and the day one is emitted is a separate fact with
 separate evidence.
 """
-no_ci_runs_the_checker = """
-This repository has no CI. scripts/check_catalogue.py is run by hand; nothing runs it on a
-push. NOT-RUN as a lane, which is not a pass. Owed by CTM's W2-T10 graduation, which brings
-this repository its own workflow.
+the_lane_runs_and_bounds_its_own_green = """
+This key read no_ci_runs_the_checker until 2026-09-03. The checker is now a blocking lane on
+every push (.github/workflows/ci.yml; first green run 33750045456), so what is NOT established
+is narrower and has to be stated rather than inferred from the absence of the old sentence: a
+green says this file still encodes the axis rule and the frozen envelope enumeration, and
+nothing else. The workflow's other lanes bound themselves the same way — there is no test
+suite, so the Tests lane reports NOT-RUN, which is not a pass; and the RabbitMQ container CI
+provisions is probed for port reachability and never spoken to.
 """
 no_transport_carries_these_yet = """
 ESB/IG's broker plane is CTM's esb_ig seed until W2-T10 moves it. This catalogue names what

@@ -146,5 +146,11 @@ settled.
 **What the adoption does NOT establish**, carried in the catalogue's own
 `not_established_here` rather than left to be inferred: no event is produced (CTM's four
 producers are held and unbuilt); nothing in this tree transports anything (the broker plane is
-CTM's seed until `W2-T10`); **no CI runs the checker**, so it is NOT-RUN as a lane, which is
-not a pass; and NC's confirmation is an expiring exception nothing computes.
+CTM's seed until `W2-T10`); and NC's confirmation is an expiring exception nothing computes.
+
+This paragraph also read **"no CI runs the checker, so it is NOT-RUN as a lane, which is not a
+pass"** until 2026-09-03, when `.github/workflows/ci.yml` made it blocking on every push (first
+green run `33750045456`). The replacement is narrower rather than absent: a green proves the
+catalogue still encodes the axis rule and the frozen envelope enumeration. **The Tests lane is
+what now reports NOT-RUN** — `backend/tests/` is empty — and the broker CI provisions is probed
+for port reachability and never spoken to.

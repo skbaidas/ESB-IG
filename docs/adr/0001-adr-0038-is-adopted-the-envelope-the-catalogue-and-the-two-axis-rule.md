@@ -140,15 +140,26 @@ them.
   an emission.
 - **Nothing is transported by this repository.** The broker plane is CTM's `esb_ig` seed until
   `W2-T10` moves it.
-- **No CI runs the checker.** This repository has no workflow; `check_catalogue.py` is run by
-  hand. Under CTM `CLAUDE.md` §11.3 that is **NOT-RUN as a lane, which is not a pass.** It
-  is owed by `W2-T10`, which brings this repository its own CI.
+- **A green bounds itself to this document.** This bullet read *"No CI runs the checker. This
+  repository has no workflow"* until 2026-09-03, when `.github/workflows/ci.yml` made
+  `check_catalogue.py` a blocking lane on every push (first green run `33750045456`). What
+  replaces it is narrower and has to be said rather than inferred: a green proves the
+  catalogue still encodes the axis rule and the frozen envelope enumeration, and proves
+  nothing about a producer, a transport, a gateway or a handler.
+- **There is no test suite.** `backend/tests/` is empty, so CI's Tests lane reports **NOT-RUN,
+  which is not a pass** (CTM `CLAUDE.md` §11.3). The RabbitMQ container the workflow
+  provisions is probed for **port reachability** and never spoken to — no AMQP, no
+  redelivery, no dead-letter routing, no priority ordering.
 - **There was no independent review.** See the top.
 
 ## Owed
 
-1. **CI in this repository**, so the checker is a lane rather than a command someone remembers.
-   Rides with CTM's `W2-T10`.
+1. ~~**CI in this repository**, so the checker is a lane rather than a command someone
+   remembers. Rides with CTM's `W2-T10`.~~ **CLOSED 2026-09-03** — `.github/workflows/ci.yml`,
+   run `33750045456`. **It did not ride with `W2-T10`, and that is the right order rather than
+   an accident**: the runner and the broker container are what the graduation should not also
+   have to build, so they are standing before the code arrives. What `W2-T10` still brings is
+   the suite that makes the Tests lane say something.
 2. **The v1.6 document set** still reads *"INT-CTM-01 keeps `deleted` until that tracker
    decision"* and *"adoption at the joint sitting pending"*. Both are superseded by this ADR
    and are to be updated citing this commit's hash. Owed to the platform owner.
