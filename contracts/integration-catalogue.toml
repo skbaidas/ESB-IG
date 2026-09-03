@@ -175,6 +175,22 @@ status = "ratified"
 kind = "command"
 application_code = "string"
 tenant_alias = "string"
+divergence_note = """
+THE ONE PLACE THE TWO HALVES OF THE DUAL RECORD DO NOT SAY THE SAME THING, recorded on the day
+of adoption rather than discovered later.
+
+CTM's asyncapi.json gives this message NO per-type axis override — it is the only one of the
+thirteen with no `allOf`, because it is a command rather than an event and inherits the base
+envelope schema. ESB/IG declares both axes `string` here.
+
+That is an ADDITION, not a contradiction: creating an owner is an act for one client on one
+application, so neither axis can be absent, and ESB/IG mediates the command and would refuse a
+message missing either. It is written down because a dual record whose halves are quietly
+reconciled is one record in two files — the disagreement surfacing is the mechanism working.
+
+Owed: CTM decides whether to carry the same constraint in its generated document. If it does,
+this note retires. If it does not, the asymmetry stays and stays visible.
+"""
 
 # ---------------------------------------------------------------------------------------
 # WHAT THIS ADOPTION DOES NOT ESTABLISH — read before treating a green as coverage.
