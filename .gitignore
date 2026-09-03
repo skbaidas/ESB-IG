@@ -37,3 +37,9 @@ Thumbs.db
 /gate-tests.json
 /test-suite.txt
 /dev-requirements.txt
+
+# Build outputs. `pip install .` and `python -m build` leave these behind; the
+# wheel is produced from the tree on demand and a committed copy would be a
+# second rendering of the source.
+/build/
+/dist/

@@ -1,27 +1,68 @@
-### ESB/IG sub-system — project and toolchain configuration.
+### ESB/IG sub-system — project, packaging and toolchain configuration.
 #
-# NAMES, stated here so nobody re-derives them from three files:
+# THE SOURCE LAYOUT AND THE DISTRIBUTED IMPORT NAME ARE TWO DIFFERENT CHOICES,
+# and conflating them was a real defect in this file's first version. Both:
 #
-#   distribution        esb-ig          (this file's `[project] name`)
-#   package directory   backend/esb_ig/
-#   dotted import path  backend.esb_ig
+#   distribution           esb-ig            (`[project] name`, below)
+#   source directory       backend/esb_ig/   (the tree; `check_boundary.py` scans it)
+#   DISTRIBUTED IMPORT     esb_ig            (top-level — what a consumer writes)
 #
-# The third is NOT a free choice made here — it is already committed in two
-# places: `scripts/check_boundary.py` sets `PACKAGES_ROOT = "backend"`, and
-# `backend/README.md` writes every example import as `backend.<name>`. CTM's
-# `scripts/check_graduation.py` rewrites `backend.` to a destination-chosen root
-# on the relocation dry-run, so the packages-root name is the move's one free
-# variable — and this repository has already spent it on `backend`, exactly as
-# CTM does. A second answer here would make the boundary gate scan a tree the
-# imports do not name.
+# THE IMPORT NAME IS NOT `backend.esb_ig`, AND THE REASON IS MEASURED RATHER THAN
+# ARGUED. CTM ships `backend/__init__.py`, which makes `backend` a REGULAR
+# package rather than a PEP 420 namespace package. Python then fixes
+# `backend.__path__` to CTM's own directory and never searches the rest of
+# `sys.path` for `backend.*` submodules, so an installed distribution providing
+# `backend/esb_ig/` is unreachable from inside CTM. Measured, not reasoned about:
 #
-# NO `[build-system]`, deliberately, and it mirrors CTM's own pyproject.toml.
-# Nothing in this repository is pip-installed: `backend.*` is importable because
-# CI puts the workspace on PYTHONPATH, which is how CTM's runner does it too.
-# Declaring a backend would force an answer to "what top-level package does
-# `esb-ig` ship?", and today the honest answer is `backend` — a name generic
-# enough to collide with CTM's. That question belongs to the graduation (W2-T10),
-# not to bring-up.
+#     sys.path = ['a', 'b']         # a/backend/__init__.py exists
+#                                   # b/backend/esb_ig/__init__.py exists
+#     import backend
+#     backend.__path__              -> only the copy under 'a'; 'b' is never searched
+#     import backend.esb_ig
+#     ImportError: No module named 'backend.esb_ig'
+#
+# So `from backend.esb_ig import ...` in CTM's `backend/wiring/` would fail the
+# moment CTM deletes its seed and pins this repository as a dependency — the
+# graduation would not build. The alternative fix, deleting CTM's
+# `backend/__init__.py` to make `backend` a namespace package, has a blast radius
+# across a 15,700-test suite and creates a shared namespace every future
+# graduated seed collides in; `iam` graduates next under W2-T11.
+#
+# THE TREE KEEPS `backend/`. That is this repository's source layout, and
+# `backend/README.md` and the boundary gate stay correct and unedited. Only what
+# is BUILT and IMPORTED changes, which is the point rather than a compromise: the
+# `backend.` prefix asserts "this lives inside a particular repository", and that
+# is exactly the fact the move ends.
+#
+# THE CONSEQUENCE THE MOVE MUST CARRY: intra-package imports have to be RELATIVE
+# (`from .envelope import Envelope`), never absolute-with-a-prefix. A relative
+# import resolves under both names, which is what makes these two choices
+# independent rather than merely reconciled. CTM's copies currently import each
+# other as `from backend.esb_ig.envelope import ...`, and that spelling cannot
+# survive installation: once this directory is `site-packages/esb_ig/`, there is
+# no `backend` above it.
+#
+# PROVEN ON EVERY RUN, NEVER ASSERTED. `.github/workflows/ci.yml` installs this
+# project into a clean virtualenv, runs from a directory that is NOT the repo
+# root with `PYTHONPATH` cleared, imports `esb_ig`, and requires `__file__` to
+# resolve inside that venv's site-packages. Installing and importing from the
+# repo root would pass for the wrong reason — the source tree is on the path.
+# The same step re-measures the ImportError above, so the reasoning is re-derived
+# every run rather than quoted from a comment that can rot.
+
+[build-system]
+# REQUIRED, and a prerequisite of the consumption model rather than a nicety:
+# without a build backend, `pip install git+https://...@<sha>` has nothing to
+# build the wheel with. The first version of this file had none, on a "mirrors
+# CTM" argument that does not carry here — CTM is never installed, and this
+# repository now must be.
+#
+# Pinned exactly, on the same reasoning as `ruff` below: the build backend
+# decides what ends up in the wheel, so an unpinned one makes the layout mapping
+# further down depend on release timing. `wheel` is listed for explicitness;
+# modern setuptools vendors what it needs to build one.
+requires = ["setuptools==80.9.0", "wheel==0.45.1"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "esb-ig"
@@ -40,13 +81,14 @@ requires-python = ">=3.11"
 # driver under a suite that has not arrived yet.
 #
 # IT IS AN EXTRA AND NOT A RUNTIME DEPENDENCY because CTM's module makes the
-# driver import GUARDED AND LAZY: `import backend.esb_ig` must succeed with no
-# AMQP client installed, so a missing driver surfaces at connect time as
+# driver import GUARDED AND LAZY: `import esb_ig` must succeed with no AMQP
+# client installed, so a missing driver surfaces at connect time as
 # `BrokerUnavailableError` rather than as an ImportError that takes the package
 # down. The in-memory adapter and every semantic test need nothing.
 #
-# CI DOES NOT INSTALL IT. Nothing in this tree imports it yet, and installing a
-# dependency no code reaches would make the extra read as exercised.
+# CI DOES NOT INSTALL IT into the gate environment. Nothing in this tree imports
+# it yet, and installing a dependency no code reaches would make the extra read
+# as exercised.
 broker = ["pika>=1.3,<2"]
 
 # The toolchain CI installs. It is read OUT OF THIS TABLE by the workflow rather
@@ -63,6 +105,27 @@ dev = [
   "pytest-cov>=6.0",
   "ruff==0.15.16",
 ]
+
+# ── packaging: the source-to-distribution mapping ────────────────────────────
+# `where = ["backend"]` makes `backend/` the package root FOR THE BUILD ONLY, so
+# `backend/esb_ig/` installs as top-level `esb_ig`. The tree is untouched.
+#
+# DISCOVERY RATHER THAN AN ENUMERATION, deliberately. The obvious spelling is
+# `package-dir = {"esb_ig" = "backend/esb_ig"}` with one `packages` row per
+# sub-package — and that list is hand-maintained, so the day the move adds
+# `esb_ig/lib/` somebody has to remember to add a row, and a forgotten row ships
+# a wheel missing a sub-package under a green build. CTM ADR-0015: the contract
+# is the enumerated set, never a hand-kept copy of it, and the enumeration
+# belongs to the tree. `include` keeps discovery narrow, so `backend/tests/` and
+# any future sibling package are not swept in by accident.
+#
+# `namespaces = false` refuses to package a directory with no `__init__.py`. A
+# missing `__init__.py` should be a build that omits the package loudly rather
+# than one that silently ships a namespace portion.
+[tool.setuptools.packages.find]
+where = ["backend"]
+include = ["esb_ig*"]
+namespaces = false
 
 # ── ruff ─────────────────────────────────────────────────────────────────────
 # Copied from CTM's pyproject.toml so the suite that moves here under W2-T10

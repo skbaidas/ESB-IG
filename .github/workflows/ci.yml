@@ -260,6 +260,153 @@ jobs:
           fi
           echo "evidence/gate-catalogue.json matches a fresh run."
 
+      # ── The distributed import name ──────────────────────────────────────────
+      # THE ONE CLAIM WHOSE FAILURE MODE IS DISCOVERED ON THE DAY OF THE MOVE.
+      # CTM will delete its `backend/esb_ig/` seed and pin this repository as a
+      # dependency; if the built distribution does not import as `esb_ig`, the
+      # graduation does not build, and nothing before that moment would have said
+      # so. So it is PROVEN here rather than asserted in a comment.
+      #
+      # THREE THINGS MAKE THIS A PROOF RATHER THAN A REHEARSAL, and each of them
+      # is a way the same step passes for the wrong reason if it is left out:
+      #   * A CLEAN VIRTUALENV, so nothing already on the runner can satisfy the
+      #     import.
+      #   * A WORKING DIRECTORY THAT IS NOT THE REPO ROOT. Python puts the script's
+      #     directory on `sys.path`; run from the repo root, `backend/` is
+      #     reachable and the SOURCE tree answers the import.
+      #   * `PYTHONPATH` CLEARED. The job sets it to the workspace so `backend.*`
+      #     resolves for the gates; inherited here it would put the source tree
+      #     back on the path, which is exactly the contamination the other two
+      #     guard against.
+      # It then requires `esb_ig.__file__` to resolve INSIDE that venv's
+      # site-packages — an import that merely succeeds proves nothing about where
+      # it came from.
+      #
+      # AND IT RE-MEASURES THE REASON. `pyproject.toml` records why the name is
+      # not `backend.esb_ig`: CTM ships `backend/__init__.py`, so `backend` is a
+      # regular package, its `__path__` is fixed to CTM's own directory, and an
+      # installed distribution providing `backend/esb_ig/` is never searched for.
+      # That is quoted in a comment, and a comment can rot — so the shadowing is
+      # rebuilt from two throwaway directories on every run and the ImportError
+      # is required to happen. A ruling whose ground is only written down is a
+      # ruling nobody re-checks.
+      - name: The distributed import name is `esb_ig` — BLOCKING
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        shell: bash
+        env:
+          # Cleared deliberately — see the note above. This is the line that
+          # stops the proof answering from the source tree.
+          PYTHONPATH: ""
+        run: |
+          set -euo pipefail
+
+          python -m venv /tmp/proof-venv
+          /tmp/proof-venv/bin/python -m pip install --quiet --disable-pip-version-check --upgrade pip
+          /tmp/proof-venv/bin/python -m pip install --quiet --disable-pip-version-check "$GITHUB_WORKSPACE"
+
+          # NOT the repo root. `cd /tmp` is load-bearing, not tidiness.
+          cd /tmp
+          /tmp/proof-venv/bin/python - <<'PY'
+          import importlib.metadata as metadata
+          import json
+          import os
+          import pathlib
+          import sys
+          import sysconfig
+          import tempfile
+
+          failures = []
+
+          # ── the positive claim ────────────────────────────────────────────
+          import esb_ig
+
+          module_file = pathlib.Path(esb_ig.__file__).resolve()
+          site_packages = pathlib.Path(sysconfig.get_paths()["purelib"]).resolve()
+          installed_from_site_packages = site_packages in module_file.parents
+          if not installed_from_site_packages:
+              failures.append(
+                  f"esb_ig resolved to {module_file}, which is not inside {site_packages} — "
+                  "the import was answered by a source tree on the path, not by the installed "
+                  "distribution."
+              )
+
+          distribution = metadata.distribution("esb-ig")
+          top_level = sorted((distribution.read_text("top_level.txt") or "").split())
+          if top_level != ["esb_ig"]:
+              failures.append(f"the distribution publishes {top_level}, expected ['esb_ig']")
+
+          # ── the negative control: why the name is not `backend.esb_ig` ─────
+          # Rebuild CTM's shape from two throwaway directories — a regular
+          # `backend` package in one, a would-be installed `backend/esb_ig` in
+          # the other — and require the ImportError. A control that cannot fire
+          # and one that has never fired are indistinguishable in an exit code.
+          with tempfile.TemporaryDirectory() as scratch:
+              root = pathlib.Path(scratch)
+              (root / "a" / "backend").mkdir(parents=True)
+              (root / "a" / "backend" / "__init__.py").write_text("", encoding="utf-8")
+              (root / "b" / "backend" / "esb_ig").mkdir(parents=True)
+              (root / "b" / "backend" / "esb_ig" / "__init__.py").write_text("", encoding="utf-8")
+
+              sys.path.insert(0, str(root / "b"))
+              sys.path.insert(0, str(root / "a"))
+              import backend
+
+              searched = [str(entry) for entry in backend.__path__]
+              try:
+                  import backend.esb_ig  # noqa: F401
+              except ImportError as exc:
+                  shadowing_detail = f"{type(exc).__name__}: {exc}"
+              else:
+                  shadowing_detail = ""
+                  failures.append(
+                      "CONTROL FAILURE: backend.esb_ig imported through a regular `backend` "
+                      "package. The ground pyproject.toml records for the naming ruling no "
+                      "longer holds, and the ruling has to be revisited rather than trusted."
+                  )
+
+          report = {
+              "gate": "distributed-import-name",
+              "outcome": "proven" if not failures else "failed",
+              "distributed_import_name": "esb_ig",
+              "source_directory": "backend/esb_ig/",
+              "distribution": f"esb-ig {metadata.version('esb-ig')}",
+              "resolved_from": str(module_file),
+              "site_packages": str(site_packages),
+              "imported_from_site_packages": installed_from_site_packages,
+              "cwd_is_not_the_repo_root": str(pathlib.Path.cwd()),
+              "negative_control": {
+                  "subject": "backend.esb_ig under a regular `backend` package (CTM's shape)",
+                  "backend_dunder_path": searched,
+                  "fired": bool(shadowing_detail),
+                  "detail": shadowing_detail,
+              },
+              "failures": failures,
+              "not_verified_here": [
+                  "NO MODULE OF SUBSTANCE IS IMPORTED. esb_ig publishes nothing yet; the "
+                  "envelope, broker protocol and transport are CTM's until W2-T10. This proves "
+                  "the packaging contract, never that the package does anything.",
+                  "THE CONSUMER SIDE IS NOT EXERCISED. CTM is not installed here and no "
+                  "`from esb_ig import ...` in CTM's wiring is compiled against this wheel.",
+                  "INTRA-PACKAGE IMPORTS ARE NOT CHECKED, because there are none yet. The move "
+                  "must bring RELATIVE imports: an absolute `from backend.esb_ig.x import y` "
+                  "cannot resolve once the directory is site-packages/esb_ig/, and this lane "
+                  "would go red on the day it arrived rather than before.",
+              ],
+          }
+
+          # Written back into the workspace, not into /tmp where this is running:
+          # the upload step collects artefacts from the repo root.
+          artefact = pathlib.Path(os.environ["GITHUB_WORKSPACE"]) / "gate-import-name.json"
+          artefact.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(report, indent=2))
+
+          if failures:
+              for failure in failures:
+                  print(f"FAIL: {failure}", file=sys.stderr)
+              raise SystemExit(1)
+          print(f"PROVEN: import esb_ig resolves to {module_file}")
+          PY
+
       # ── The broker ───────────────────────────────────────────────────────────
       # WHAT THIS IS: a check that the service container's port is reachable from
       # the job. The `--health-cmd` above already gates the job on the broker
@@ -393,6 +540,7 @@ jobs:
           path: |
             gate-boundary.json
             gate-broker.json
+            gate-import-name.json
             gate-tests.json
             test-suite.txt
             evidence/gate-catalogue.json
