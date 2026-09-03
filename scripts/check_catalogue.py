@@ -32,7 +32,16 @@ WHAT A GREEN HERE DOES NOT PROVE.
   * That CTM's document and this catalogue AGREE. Nothing here reads CTM's tree, and that is
     deliberate: a dual record whose halves are checked against each other is one record with
     two files. The halves are meant to be independently derivable and to disagree loudly.
-  * That this ran at all. This repository has no CI. NOT-RUN as a lane, which is not a pass.
+  * That any of it is IMPLEMENTED. This lane now runs on every push
+    (`.github/workflows/ci.yml`, blocking), and that is a narrower claim than the one this
+    bullet used to make room for: a green says the committed catalogue still encodes the
+    axis rule and the frozen envelope enumeration. It says nothing about a gateway, a
+    broker, a mapping flow or a handler, none of which exist in this tree.
+
+    This bullet read *"That this ran at all. This repository has no CI"* until the workflow
+    landed, and it is corrected in the same commit rather than after it. CTM's own `ci.yml`
+    header records finding exactly this defect in itself — a claim outliving its subject by
+    a week in the one file whose purpose is enforcing that claims match reality.
 
 NEGATIVE CONTROL RUNS ON EVERY INVOCATION (CTM F19). A detector that has never fired and one
 that cannot fire are indistinguishable in an exit code.
@@ -214,8 +223,13 @@ def main() -> int:
             "CTM'S DOCUMENT IS NOT READ. The two halves of the dual record are meant to be "
             "independently derivable; checking one against the other would make them one "
             "record in two files.",
-            "NO CI RUNS THIS. This repository has no workflow. NOT-RUN as a lane, which is "
-            "not a pass.",
+            "NOTHING IS IMPLEMENTED. This lane runs on every push and blocks "
+            "(.github/workflows/ci.yml); a green says the committed catalogue still encodes "
+            "the axis rule and the frozen envelope enumeration, and nothing about a gateway, "
+            "a broker, a mapping flow or a handler — none of which exist in this tree.",
+            "THERE IS NO TEST SUITE. backend/tests is empty, so the Tests lane reports "
+            "NOT-RUN, which is not a pass; and the broker CI provisions is probed for port "
+            "reachability only, never spoken to.",
         ],
     }
 

@@ -26,3 +26,14 @@ htmlcov/
 # OS
 Thumbs.db
 .DS_Store
+
+# Wire-only gate artefacts. `.github/workflows/ci.yml` writes these at the repo
+# root and uploads them with the run; each describes ONE execution on ONE
+# machine, so a committed copy would carry that machine's provenance. The
+# artefact that IS committed is `evidence/gate-catalogue.json`, which the
+# catalogue gate writes into the tree on purpose — it is the adoption's evidence.
+/gate-boundary.json
+/gate-broker.json
+/gate-tests.json
+/test-suite.txt
+/dev-requirements.txt

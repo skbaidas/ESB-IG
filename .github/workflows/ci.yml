@@ -1,0 +1,356 @@
+name: esb-ig-ci
+
+# Build gates for the ESB/IG sub-system.
+#
+# Every command here is the one the tree already documents — `CLAUDE.md` §3 and
+# `backend/README.md`. A variant invented here would silently make the gate a
+# different gate from the one people run locally.
+#
+# ⚠️ Branch protection is unavailable on this repository, exactly as on CTM's
+# (platform `CLAUDE.md` §12, GOV-GATE: the API returns 403 — "Upgrade to GitHub
+# Pro or make this repository public"). NOTHING here can technically block a
+# merge. A red build is the only enforcement signal that exists. Never merge
+# over red.
+#
+# WHAT THIS WORKFLOW DOES NOT PROVE, stated plainly because a green tick is read
+# as proof of much more than it is:
+#
+#   * NO EVENT IS PRODUCED AND NOTHING IS TRANSPORTED. This repository holds a
+#     catalogue, an ADR and two gates. The broker plane is still CTM's `esb_ig`
+#     seed until W2-T10, and CTM's four `ctm.tenant.*` producers are held and
+#     unbuilt. Adopting a name emits nothing.
+#
+#   * THERE IS NO SUITE. `backend/tests/` is empty. The Tests lane below reads
+#     pytest's own exit 5 and reports NOT-RUN, which platform `CLAUDE.md` §11.3
+#     says is not a pass. It is self-retiring: the first `test_*.py` to land
+#     turns it into a blocking lane with nothing for anyone to switch on.
+#
+#   * THE BROKER IS PROVISIONED, NOT EXERCISED. A RabbitMQ 4 service container
+#     runs and its port is probed. That is a claim about a container and a port
+#     mapping. It is NOT the transport suite, which is the thing that would
+#     observe redelivery, dead-letter routing and priority ordering — and which
+#     does not exist here yet.
+#
+#   * NOTHING IS CROSS-CHECKED AGAINST CTM. `check_catalogue.py` deliberately
+#     does not read CTM's document: a dual record whose halves are checked
+#     against each other is one record in two files. The halves are meant to be
+#     independently derivable and to disagree loudly.
+
+on:
+  push:
+    # EVERY branch, deliberately, and copied from CTM's discipline rather than
+    # composed here. CTM's filter used to read [main, master, "feature/**",
+    # "security/**"] and the branch all of its wave 1 was built on matched none
+    # of them, so the first thing a newly attached runner would have done is not
+    # run. A branch filter that silently excludes the branch people work on is
+    # the same defect class as a skipped test lane: green because nothing
+    # happened (§11.3). This repository's own second branch is
+    # `esb-ig-mediation-clearance`, which matches no conventional prefix either.
+    branches: ["**"]
+
+    # NO PATH FILTER, and its absence is a ruling rather than an omission — CTM
+    # §14 TRIGGER-FILTERED, found 2026-09-01 and pinned there by
+    # `backend/tests/test_ci_triggers.py`.
+    #
+    # CTM's read `paths-ignore: ["**.md", "roles/**", "wayfinder/**",
+    # "Sprints/**", "References/**"]` and TWO OF ITS BLOCKING GATES READ NOTHING
+    # BUT FILES IN THAT SET, so both lanes ran on the pushes that could not break
+    # them and did not run on the pushes that could.
+    #
+    # THAT AIMS EVEN WORSE HERE. Everything this repository currently contains
+    # except two scripts and one TOML file is markdown: the decision baseline,
+    # the developed design, the ADR that adopts the envelope, the tickets. A
+    # `**.md` filter reads as "skip documentation" and here means "skip the
+    # commits that carry the decisions".
+    #
+    # A FILTERED PUSH IS WORSE THAN A SKIP. A skipped lane leaves a NOT-RUN
+    # artefact and a row in the run list, and §11.3 has vocabulary for it. A push
+    # that creates no run leaves nothing at all to read — no artefact, no red, no
+    # row — and no instrument in this estate reports an absence of runs. CTM
+    # found this when a commit fixing a red build by editing one `.md` scheduled
+    # nothing: the fix for a build failure was invisible to the build.
+    #
+    # DELETED RATHER THAN NARROWED. A curated "safe to ignore" list is a second
+    # rendering of what the gates read, and ADR-0015's rule is that two
+    # renderings of one fact disagree. The price is runner minutes on
+    # documentation-only pushes, which is the price `branches: ["**"]` already
+    # pays.
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+concurrency:
+  group: esb-ig-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  esb-ig-ci:
+    runs-on: ubuntu-latest
+
+    env:
+      # `backend.*` importable as a package, `scripts.*` likewise. Nothing here
+      # is pip-installed — see `pyproject.toml` on why there is no build-system.
+      PYTHONPATH: ${{ github.workspace }}
+
+      # THE POINT OF THE SERVICE CONTAINER, ahead of the suite that will read it.
+      # The transport tests that graduate here under W2-T10 skip when this is
+      # unset, and §11.3 says a skip is not-run rather than a pass — so
+      # provisioning the broker now is what makes the day they land a move rather
+      # than a move plus an infrastructure change.
+      #
+      # Not `guest:guest`: CTM's `backend/esb_ig/lib/config.py` refuses the
+      # shipped default pair, so a suite moving here would refuse this URL. A
+      # workflow people copy from should not teach the shape that config
+      # validator exists to remove. A literal throwaway pair is acceptable in a
+      # service container precisely because it is not a deployment.
+      ESB_IG_TEST_BROKER_URL: amqp://esb_ig_ci:esb-ig-ci-throwaway-not-a-deployment@localhost:5672/
+
+    services:
+      # The broker the transport suite needs. It is here BEFORE that suite is,
+      # which is the whole intent of this seed: the mediation plane is what ESB/IG
+      # is for, and standing the server up is the half that cannot be done by
+      # moving files.
+      rabbitmq:
+        # PINNED BY DIGEST, and the digest is REUSED FROM CTM's `ci.yml` rather
+        # than re-resolved. CTM records it as `rabbitmq:4` as the registry
+        # resolved it on 2026-08-29, verified to carry linux/amd64. Re-resolving
+        # the tag here would produce a digest with no provenance anybody in this
+        # estate can cite, and — worse — would mean the two repositories claim to
+        # test against "RabbitMQ 4" while running two different images.
+        image: rabbitmq@sha256:f3aa266b9f3ee3d06c6658804aa3b8e4474bfc18880dcc20f469995a728c298b
+        env:
+          RABBITMQ_DEFAULT_USER: esb_ig_ci
+          RABBITMQ_DEFAULT_PASS: esb-ig-ci-throwaway-not-a-deployment
+        ports:
+          - 5672:5672
+        # The health check is what makes container liveness a precondition of the
+        # steps rather than something a probe has to establish: Actions holds the
+        # job until this passes or fails it outright.
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          # CTM's CI runs 3.11.16 and `pyproject.toml` declares `>=3.11`. The two
+          # trees are moved between; a runner on a different minor would make a
+          # red here need investigating before it could be ruled a real defect.
+          python-version: "3.11"
+          cache: pip
+          # Named explicitly: the default pip cache key globs for
+          # `requirements.txt`, and this repository has none by design.
+          cache-dependency-path: pyproject.toml
+
+      # The toolchain is READ OUT OF `pyproject.toml`'s `dev` extra rather than
+      # restated here. A second list of the same packages is a second rendering
+      # of one fact, and ADR-0015's rule is that two renderings disagree — the
+      # way they disagree here is that a developer adds a tool locally and the
+      # runner silently does not have it.
+      #
+      # `pip install .[dev]` is not available: there is no build-system, for the
+      # reason `pyproject.toml` records. `tomllib` is stdlib from 3.11.
+      #
+      # THE BROKER EXTRA IS DELIBERATELY NOT INSTALLED. Nothing in this tree
+      # imports `pika`, and installing it would make the extra read as exercised.
+      - name: Install the dev toolchain
+        id: install
+        run: |
+          python - <<'PY' > dev-requirements.txt
+          import pathlib
+          import tomllib
+
+          pyproject = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          for requirement in pyproject["project"]["optional-dependencies"]["dev"]:
+              print(requirement)
+          PY
+          echo "--- derived from pyproject.toml [project.optional-dependencies].dev ---"
+          cat dev-requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r dev-requirements.txt
+
+      # ── Lint and format ──────────────────────────────────────────────────────
+      # `ruff` is pinned exactly in the `dev` extra. A formatter's output IS its
+      # verdict, so an unpinned one makes this lane's result depend on release
+      # timing rather than on the code.
+      - name: Lint (ruff) — BLOCKING
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: ruff check backend scripts
+
+      - name: Format (ruff format --check) — BLOCKING
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: ruff format --check backend scripts
+
+      # ── Evidence artefacts (§11.3) ───────────────────────────────────────────
+      # §11.3: gates are evaluated from committed machine-readable artefacts —
+      # "a pass recorded in prose is not evidence". This step only PRODUCES the
+      # evidence; the blocking decisions are the two steps after it, so the `||
+      # true` here cannot mask a failure, and neither can a redirect swallowing
+      # an exit code.
+      #
+      # THE TWO GATES EMIT TO DIFFERENT PLACES and that is not an oversight to be
+      # tidied: `check_boundary.py --json` prints to stdout, so it is redirected;
+      # `check_catalogue.py --json` writes `evidence/gate-catalogue.json`, a
+      # committed path, because that artefact is the adoption's evidence and
+      # lives in the tree rather than only at the wire.
+      - name: Evidence artefacts — NON-BLOCKING (the gates below decide)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          python scripts/check_boundary.py --json > gate-boundary.json || true
+          python scripts/check_catalogue.py --json || true
+
+      - name: Boundary gate (N3 / deep modules) — BLOCKING
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: python scripts/check_boundary.py
+
+      # Adoption is a claim and this is the instrument — `docs/adr/0001` adopts
+      # CTM's ADR-0038 and an adoption recorded only in an ADR is a sentence.
+      # Exit 2 is a CONTROL FAILURE (the negative control stopped firing), which
+      # is a different repair from a finding and is why it is a separate code.
+      - name: Catalogue gate (envelope · axis rule) — BLOCKING
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: python scripts/check_catalogue.py
+
+      # ── The broker ───────────────────────────────────────────────────────────
+      # WHAT THIS IS: a check that the service container's port is reachable from
+      # the job. The `--health-cmd` above already gates the job on the broker
+      # being alive INSIDE its container; the one fact this adds is that the port
+      # mapping into the job works, which is the half that would otherwise fail
+      # for the first time on the day the suite arrives.
+      #
+      # WHAT THIS IS NOT: the transport suite. It opens a TCP connection and
+      # closes it. It speaks no AMQP, publishes nothing, and observes none of the
+      # three semantics a real broker exists to prove — redelivery after an
+      # unacknowledged consumer crash, server-side dead-letter routing, priority
+      # ordering across two concurrent consumers. Those need a suite that is not
+      # here, and its artefact says so in `not_verified_here` so a green cannot
+      # be read as transport evidence.
+      - name: Broker port reachability — NOT the transport suite
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import socket
+          import sys
+          import urllib.parse
+
+          # Read from the environment, not interpolated by the workflow expression
+          # engine: the URL the suite will read is the one this probe must reach,
+          # and two spellings of it is one spelling too many.
+          url = urllib.parse.urlparse(os.environ["ESB_IG_TEST_BROKER_URL"])
+          host, port = url.hostname, url.port
+          try:
+              with socket.create_connection((host, port), timeout=15):
+                  outcome, detail = "reachable", f"opened and closed a TCP connection to {host}:{port}"
+          except OSError as exc:
+              outcome, detail = "unreachable", f"{type(exc).__name__}: {exc}"
+
+          report = {
+              "gate": "broker-reachability",
+              "outcome": outcome,
+              "detail": detail,
+              "image": "rabbitmq@sha256:f3aa266b9f3ee3d06c6658804aa3b8e4474bfc18880dcc20f469995a728c298b",
+              "not_verified_here": [
+                  "NO AMQP IS SPOKEN. This opens a socket. It does not connect as a client, "
+                  "declare a queue, publish, or consume.",
+                  "THE THREE SEMANTICS ARE NOT OBSERVED — redelivery after an unacknowledged "
+                  "consumer crash, server-side dead-letter routing, priority ordering across two "
+                  "concurrent consumers. Those are what a server performs and a fake cannot fake, "
+                  "and they need the transport suite that graduates here under W2-T10.",
+                  "NO DRIVER IS INSTALLED. `pika` is an extra and CI does not install it, because "
+                  "nothing in this tree imports it yet.",
+              ],
+          }
+          pathlib.Path("gate-broker.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(report, indent=2))
+          # A declared container whose port does not reach the job is a real defect
+          # and fails the build. Discovering it on the day the suite lands would
+          # read as the suite being broken.
+          sys.exit(0 if outcome == "reachable" else 1)
+          PY
+
+      # ── Tests ────────────────────────────────────────────────────────────────
+      # THE LANE READS PYTEST'S OWN EXIT CODE and nothing else. Exit 5 is "no
+      # tests collected"; anything else is the real verdict and is passed
+      # straight through, so a red suite is a red build from the first test
+      # onwards.
+      #
+      # WHY NOT A PRE-CHECK for `test_*.py` files: that would be a second reading
+      # of "is there a suite", and two readings of one fact disagree. Pytest's
+      # answer is the only one that cannot drift from what pytest then does.
+      #
+      # `backend/tests/` MUST EXIST for this to work — pytest exits 4 (usage
+      # error) on a missing `testpaths` and 5 on an empty one, and only the
+      # second is an answer this lane can honestly render. `backend/tests/
+      # README.md` is what keeps the directory in git.
+      #
+      # NOT-RUN IS NOT A PASS (§11.3). The step exits 0 so the build reflects the
+      # gates that DID run, and it writes an artefact whose `outcome` says
+      # `not-run` and raises a workflow warning, so the absence is visible in the
+      # run summary rather than inferred from a green tick.
+      - name: Tests — BLOCKING once a suite exists, NOT-RUN until then
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q -rA | tee test-suite.txt
+          status=${PIPESTATUS[0]}
+          set -e
+
+          case "$status" in
+            5) outcome="not-run"
+               detail="pytest collected no tests under testpaths backend/tests (exit 5). NOT-RUN is not a pass."
+               ;;
+            0) outcome="passed"
+               detail="the suite ran and nothing failed"
+               ;;
+            *) outcome="failed"
+               detail="pytest exited $status"
+               ;;
+          esac
+
+          cat > gate-tests.json <<JSON
+          {
+            "gate": "tests",
+            "outcome": "$outcome",
+            "detail": "$detail",
+            "pytest_exit_code": $status,
+            "not_verified_here": [
+              "WHILE THE OUTCOME IS not-run, NOTHING ABOUT THIS SUB-SYSTEM IS TESTED HERE. The envelope, the broker protocol and the transport adapter all still live in CTM's tree and graduate under W2-T10.",
+              "This lane is self-retiring: the first test_*.py under backend/tests turns it blocking with no configuration change. A not-run outcome after that date would mean the suite was deleted, not that none was written."
+            ]
+          }
+          JSON
+          cat gate-tests.json
+
+          if [ "$status" -eq 5 ]; then
+            echo "::warning title=Tests NOT-RUN::No suite exists under backend/tests. Platform CLAUDE.md 11.3: not-run is not a pass."
+            echo "### Tests: NOT-RUN" >> "$GITHUB_STEP_SUMMARY"
+            echo "pytest collected no tests under \`backend/tests\` (exit 5). **NOT-RUN is not a pass** (platform \`CLAUDE.md\` §11.3)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          exit "$status"
+
+      # `if-no-files-found: error`, NOT `warn`: a missing artefact means a gate
+      # did not run, and §11.3 says not-run is not a pass. Warning on it is how
+      # partial evidence gets mistaken for complete evidence.
+      - name: Upload gate evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: esb-ig-gate-evidence
+          path: |
+            gate-boundary.json
+            gate-broker.json
+            gate-tests.json
+            test-suite.txt
+            evidence/gate-catalogue.json
+          if-no-files-found: error

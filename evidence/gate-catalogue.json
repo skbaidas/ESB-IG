@@ -12,6 +12,7 @@
     "NO EVENT IS PRODUCED. CTM's four ctm.tenant.* producers are held and unbuilt; adopting a name does not emit anything.",
     "NOTHING IS TRANSPORTED. The broker plane is CTM's esb_ig seed until W2-T10.",
     "CTM'S DOCUMENT IS NOT READ. The two halves of the dual record are meant to be independently derivable; checking one against the other would make them one record in two files.",
-    "NO CI RUNS THIS. This repository has no workflow. NOT-RUN as a lane, which is not a pass."
+    "NOTHING IS IMPLEMENTED. This lane runs on every push and blocks (.github/workflows/ci.yml); a green says the committed catalogue still encodes the axis rule and the frozen envelope enumeration, and nothing about a gateway, a broker, a mapping flow or a handler \u2014 none of which exist in this tree.",
+    "THERE IS NO TEST SUITE. backend/tests is empty, so the Tests lane reports NOT-RUN, which is not a pass; and the broker CI provisions is probed for port reachability only, never spoken to."
   ]
 }

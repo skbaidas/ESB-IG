@@ -43,13 +43,27 @@ interface is its **root modules**; anything in a subfolder is implementation and
 imported from outside. Read [`backend/README.md`](./backend/README.md) before adding or
 importing a package.
 
+**The three names**, so nobody re-derives them: distribution `esb-ig` · package directory
+`backend/esb_ig/` · dotted import path **`backend.esb_ig`**. Nothing is pip-installed and
+there is no `[build-system]`; `backend.*` is importable off `PYTHONPATH`, as in CTM.
+
 | Purpose | Command | Status |
 |---|---|---|
-| **Boundary gate** (N3 · deep modules · no cycles) | `python scripts/check_boundary.py` | **Live — blocking.** `--json` for committed evidence |
-| Tests · lint · migrations | *(unset)* | Phase A, with `pyproject.toml` |
+| **Boundary gate** (N3 · deep modules · no cycles) | `python scripts/check_boundary.py` | **Live — blocking.** `--json` prints to **stdout**; redirect it for evidence |
+| **Catalogue gate** (envelope · axis rule) | `python scripts/check_catalogue.py` | **Live — blocking.** `--json` **writes** `evidence/gate-catalogue.json`. Exit 2 is a control failure, not a finding |
+| **Lint** | `python -m ruff check backend scripts` | **Live — blocking.** Rules are CTM's, copied into `pyproject.toml` |
+| **Format** | `python -m ruff format --check backend scripts` | **Live — blocking.** Drop `--check` to apply. `ruff` is pinned **exactly** in the `dev` extra: a formatter's output is its verdict |
+| **Tests** | `python -m pytest -q` | **NOT-RUN — there is no suite.** `backend/tests/` is empty, pytest exits **5**, and CI renders that as NOT-RUN, which §11.3 says is not a pass. Self-retiring: the first `test_*.py` makes the lane blocking with no configuration change |
+| **CI** | `.github/workflows/ci.yml` | **Live — it runs.** Every branch, every path, no filter (CTM §14 `TRIGGER-FILTERED`: a filtered push leaves nothing to read, which is worse than a skip). A **RabbitMQ 4 service container pinned by digest** is provisioned ahead of the transport suite; the lane probes its **port** and speaks no AMQP |
+| Migrations | *(unset)* | ESB/IG owns its own data and has no lineage yet |
 
-The gate runs clean against an empty tree and starts biting on the first package. Run it from
-the repo root (`D:\PMO\Phase 1\ESB-IG`). Never guess a runner command that is not listed here.
+The boundary gate runs clean against an empty tree and starts biting on the first package.
+Run everything from the repo root (`D:\PMO\Phase 1\ESB-IG`). Never guess a runner command
+that is not listed here.
+
+**Branch protection is unavailable** on this repository as on CTM's (platform `CLAUDE.md`
+§12, GOV-GATE — the API returns 403 on this plan), so nothing can technically block a merge
+and **a red build is the only enforcement signal there is**.
 
 ---
 
