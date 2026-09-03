@@ -143,7 +143,11 @@ def judge(catalogue: dict) -> list[Finding]:
 _CONTROL_VIOLATING = {
     "catalogue": {"envelope_fields": ["event_id"]},
     "type": [
-        {"name": "ctm.tenant.closed", "application_code": ["string", "null"], "tenant_alias": "string"},
+        {
+            "name": "ctm.tenant.closed",
+            "application_code": ["string", "null"],
+            "tenant_alias": "string",
+        },
         {"name": "ctm.tenant.created", "application_code": "string", "tenant_alias": "string"},
     ],
 }
@@ -151,8 +155,16 @@ _CONTROL_CLEAN = {
     "catalogue": {"envelope_fields": list(ADOPTED_ENVELOPE_FIELDS)},
     "type": [
         {"name": "ctm.tenant.closed", "application_code": "null", "tenant_alias": "string"},
-        {"name": "ctm.application.registered", "application_code": "string", "tenant_alias": "null"},
-        {"name": "ctm.application.entitled", "application_code": "string", "tenant_alias": "string"},
+        {
+            "name": "ctm.application.registered",
+            "application_code": "string",
+            "tenant_alias": "null",
+        },
+        {
+            "name": "ctm.application.entitled",
+            "application_code": "string",
+            "tenant_alias": "string",
+        },
     ],
 }
 
