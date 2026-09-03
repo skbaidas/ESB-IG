@@ -1,0 +1,17 @@
+{
+  "gate": "esb-ig-catalogue",
+  "outcome": "clean",
+  "adopted": "2026-09-03",
+  "types_judged": 13,
+  "negative_control": {
+    "passed": true,
+    "detail": "violating sample fired all three detectors; clean sample fired none"
+  },
+  "findings": [],
+  "not_verified_here": [
+    "NO EVENT IS PRODUCED. CTM's four ctm.tenant.* producers are held and unbuilt; adopting a name does not emit anything.",
+    "NOTHING IS TRANSPORTED. The broker plane is CTM's esb_ig seed until W2-T10.",
+    "CTM'S DOCUMENT IS NOT READ. The two halves of the dual record are meant to be independently derivable; checking one against the other would make them one record in two files.",
+    "NO CI RUNS THIS. This repository has no workflow. NOT-RUN as a lane, which is not a pass."
+  ]
+}

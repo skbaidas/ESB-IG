@@ -3,10 +3,11 @@ id: EM02
 title: "Adopt ADR-0038 — the envelope, the ratified catalogue, and the per-type axis rule; and carry the renamed terminal lifecycle type"
 labels: ["wayfinder:decision", "ready-for-human"]
 hitl: true
-status: open
+status: closed
 blocked-by: []
 blocks: []
 assignee: skbaidas@gmail.com
+resolved: 2026-09-03
 created: 2026-09-02
 raised-by: "CTM — DT22, ADR-0037, ADR-0038"
 ---
@@ -110,7 +111,40 @@ Any of these is a real answer, and a refusal is as useful as an adoption:
 
 ## Criteria
 
-- [ ] The catalogue's terminal lifecycle name is ruled — adopted, conditioned or refused — with a date
-- [ ] ADR-0038 is recorded on ESB/IG's side: envelope, ratified catalogue, and the per-type axis rule
-- [ ] ESB/IG says whether the payloads meet its needs, or names what is missing
-- [ ] The answer is written back to CTM's `DT22`, which stays open until it is
+- [x] The catalogue's terminal lifecycle name is ruled — adopted, conditioned or refused — with a date
+      — **ADOPTED 2026-09-03.** `ctm.tenant.closed` carried; `INT-CTM-01`'s `deleted` retired by it
+- [x] ADR-0038 is recorded on ESB/IG's side: envelope, ratified catalogue, and the per-type axis rule
+      — [`docs/adr/0001`](../../../docs/adr/0001-adr-0038-is-adopted-the-envelope-the-catalogue-and-the-two-axis-rule.md)
+      and [`contracts/integration-catalogue.toml`](../../../contracts/integration-catalogue.toml),
+      **all three in one act** because ADR-0038 says they are one dual-recording
+- [x] ESB/IG says whether the payloads meet its needs, or names what is missing
+      — **nothing missing, and recorded as a JUDGEMENT rather than a verification**: ESB/IG's
+      mediation flows are not built, so this is an opinion about software that does not exist,
+      held by the person who wrote the contract. IAM's confirmation is the one that was real,
+      and it went red four times
+- [x] The answer is written back to CTM's `DT22`, which stays open until it is
+      — carried back 2026-09-03; `DT22` closes on it
+
+---
+
+## Resolution — 2026-09-03
+
+**Adopted in full.** [`docs/adr/0001`](../../../docs/adr/0001-adr-0038-is-adopted-the-envelope-the-catalogue-and-the-two-axis-rule.md).
+
+**The joint sitting was held by one person holding both chairs, and the ADR says so in its
+first line.** No correspondence from ESB/IG exists or is simulated; there was no independent
+review. The compensating instrument is
+[`scripts/check_catalogue.py`](../../../scripts/check_catalogue.py), which derives each type's
+axis mandate from its **name** rather than trusting the declaration — so a misclassification
+made in CTM is caught here rather than copied. That is weaker than a reviewer, and it is what
+is actually available.
+
+**Adopted as one act, not as a fragment.** The rename and the two-axis rule land together,
+because adopting the name alone would close CTM's `DT22` and immediately reopen what `DT01`
+settled.
+
+**What the adoption does NOT establish**, carried in the catalogue's own
+`not_established_here` rather than left to be inferred: no event is produced (CTM's four
+producers are held and unbuilt); nothing in this tree transports anything (the broker plane is
+CTM's seed until `W2-T10`); **no CI runs the checker**, so it is NOT-RUN as a lane, which is
+not a pass; and NC's confirmation is an expiring exception nothing computes.

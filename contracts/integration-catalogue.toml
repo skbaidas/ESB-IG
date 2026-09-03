@@ -1,0 +1,203 @@
+# ESB/IG — the ratified integration catalogue
+#
+# ADOPTED 2026-09-03 under docs/adr/0001, answering CTM's EM02 ask.
+#
+# WHAT THIS FILE IS. The catalogue of event types ESB/IG's broker plane carries, with the
+# per-type axis rule that governs which envelope keys may be null on which type. It is the
+# ESB/IG half of a dual record: CTM publishes the same facts as contracts/asyncapi.json in
+# its own tree, generated from its code. This file is written by hand and checked by
+# scripts/check_catalogue.py against the shape ADR-0038 requires.
+#
+# WHAT THIS FILE IS NOT. It is not a copy of CTM's document and must never be treated as
+# one. CTM's asyncapi.json is GENERATED from EVENT_TYPES and the frozen envelope; this file
+# is ESB/IG's ADOPTION of it. The two can disagree, and the day they do is a finding rather
+# than a merge conflict — which is the whole reason a dual record is worth keeping. Nothing
+# in this repository reads CTM's document, and nothing in CTM's reads this one.
+#
+# THE CONTRACT IS THE ENUMERATION, NEVER THE COUNT (CTM ADR-0015). There is no total in this
+# file and none may be added.
+#
+# WHAT NO GATE HERE READS. This repository has no CI (owed by CTM's W2-T10, the graduation).
+# scripts/check_catalogue.py runs by hand and nothing runs it on a push. Under CTM
+# CLAUDE.md 11.3 that makes the instrument NOT-RUN as a lane, which is not a pass — it is
+# recorded here rather than left for a reader to discover.
+
+[catalogue]
+adopted = "2026-09-03"
+adopted_under = "docs/adr/0001-adr-0038-is-adopted-the-envelope-the-catalogue-and-the-two-axis-rule.md"
+answers = "wayfinder/esb-ig-mediation/tickets/02-adopt-adr-0038-the-envelope-the-catalogue-and-the-axis-rule.md"
+counterparty_record = "../CTM/contracts/asyncapi.json"
+counterparty_decision = "../CTM/docs/adr/0038-the-envelope-carries-an-axis-rule-per-type.md"
+envelope_version = 1
+
+# The envelope's enumerated field set, as frozen by CTM at contracts/envelope.json on
+# 2026-09-02. Adopted here as the transport contract ESB/IG carries.
+envelope_fields = [
+  "event_id",
+  "type",
+  "version",
+  "occurred_at",
+  "correlation_id",
+  "application_code",
+  "tenant_alias",
+  "producer",
+  "priority",
+  "payload",
+]
+
+# THE TWO-AXIS RULE, stated once here and asserted per type below.
+#
+# Two of the ten envelope keys are VALUE-nullable, and each is null precisely when the fact
+# it names is not scoped on that axis:
+#
+#   application_code  is null when the fact is about a CLIENT rather than about one of that
+#                     client's applications. A client is suspended for the client, not for
+#                     one application.
+#   tenant_alias      is null when the fact is about the PLATFORM's catalogue of applications
+#                     rather than about any one client. Registering an application is an
+#                     operator act with no client in it.
+#
+# The permitted set for a given type must be EXACTLY {null} or EXACTLY {string}. A widened
+# union is a FINDING, not a match — because a union is what makes a placeholder value
+# representable again, and a seeded sentinel travelling in place of an absent fact is the
+# defect the rule exists to make unrepresentable. This was ESB/IG's stated condition of
+# accepting nullability at all, and it is the condition on which the adoption below rests.
+axis_keys = ["application_code", "tenant_alias"]
+permitted_axis_values = ["string", "null"]
+
+# ---------------------------------------------------------------------------------------
+# The ratified types. `status` is CTM's, carried across rather than re-decided here:
+# `ratified` means ADR-0038 governs it; `pending` means it enters by the extension path
+# (tracker decision plus schema version), never by widening a lint. ESB/IG admits no channel
+# for a pending type today.
+# ---------------------------------------------------------------------------------------
+
+# --- ctm.tenant.* — the four that need application_code nullable. These are exactly the
+# case ADR-0038 was extended for, and INT-CTM-01's `deleted` is retired by the fourth.
+[[type]]
+name = "ctm.tenant.created"
+status = "ratified"
+application_code = "null"
+tenant_alias = "string"
+
+[[type]]
+name = "ctm.tenant.suspended"
+status = "ratified"
+application_code = "null"
+tenant_alias = "string"
+
+[[type]]
+name = "ctm.tenant.reactivated"
+status = "ratified"
+application_code = "null"
+tenant_alias = "string"
+
+[[type]]
+name = "ctm.tenant.closed"
+status = "ratified"
+application_code = "null"
+tenant_alias = "string"
+supersedes = "INT-CTM-01 ctm.tenant.deleted"
+supersession_note = """
+THE RENAME, ADOPTED. INT-CTM-01 was built on the verb meaning DESTROYED, and CTM's argument
+(its ADR-0037) is that `deleted` promised what the platform structurally cannot do: its own
+runtime role holds DELETE on no invoice table, an approved invoice is frozen against every
+role, and a four-year statutory retention duty runs over exactly those records. A catalogue
+name that describes an act the producer cannot perform is a name a consumer will build
+against and be wrong. `closed` is what actually happens; reclaim and erase are separate acts
+with separate names and, today, no producer at all.
+"""
+
+# --- ctm.application.* — the three released producers.
+[[type]]
+name = "ctm.application.registered"
+status = "ratified"
+application_code = "string"
+tenant_alias = "null"
+axis_note = """
+THE ONE TYPE THAT IS NULL ON THE OTHER AXIS, and it is why the rule is stated as two axes
+rather than as one nullable key. Registering an application in the platform catalogue is an
+operator act about the application; no client is party to it. A reader who learned the rule
+from application_code alone would take tenant_alias for always-present and build a consumer
+that refuses this type.
+"""
+
+[[type]]
+name = "ctm.application.entitled"
+status = "ratified"
+application_code = "string"
+tenant_alias = "string"
+
+[[type]]
+name = "ctm.application.revoked"
+status = "ratified"
+application_code = "string"
+tenant_alias = "string"
+
+# --- the commerce namespace.
+[[type]]
+name = "ctm.quota.threshold_reached"
+status = "ratified"
+application_code = "string"
+tenant_alias = "string"
+
+# --- the billing namespace. PENDING, and ESB/IG carries no channel for these. They are
+# listed so that the catalogue's silence about them cannot be read as their absence.
+[[type]]
+name = "ctm.billing.invoice_issued"
+status = "pending"
+application_code = "string"
+tenant_alias = "string"
+
+[[type]]
+name = "ctm.billing.trial_expiring"
+status = "pending"
+application_code = "string"
+tenant_alias = "string"
+
+[[type]]
+name = "ctm.billing.payment_due"
+status = "pending"
+application_code = "string"
+tenant_alias = "string"
+
+[[type]]
+name = "ctm.billing.payment_overdue"
+status = "pending"
+application_code = "string"
+tenant_alias = "string"
+
+# --- the one command. Request/acknowledge, idempotent on command_id — not an event, and
+# carried here because ESB/IG mediates it.
+[[type]]
+name = "iam.owner.create"
+status = "ratified"
+kind = "command"
+application_code = "string"
+tenant_alias = "string"
+
+# ---------------------------------------------------------------------------------------
+# WHAT THIS ADOPTION DOES NOT ESTABLISH — read before treating a green as coverage.
+# ---------------------------------------------------------------------------------------
+[not_established_here]
+no_producer_is_running = """
+CTM's four ctm.tenant.* producers were HELD pending this adoption and are not yet built.
+Adopting the name does not emit an event, and the day one is emitted is a separate fact with
+separate evidence.
+"""
+no_ci_runs_the_checker = """
+This repository has no CI. scripts/check_catalogue.py is run by hand; nothing runs it on a
+push. NOT-RUN as a lane, which is not a pass. Owed by CTM's W2-T10 graduation, which brings
+this repository its own workflow.
+"""
+no_transport_carries_these_yet = """
+ESB/IG's broker plane is CTM's esb_ig seed until W2-T10 moves it. This catalogue names what
+will be carried; nothing in THIS tree carries anything today.
+"""
+nc_has_not_confirmed = """
+ADR-0038's owed item 3 asks the consumers to confirm the payloads meet their needs. IAM
+answered, in assertions, and four of them were red and found a real defect. NC is not live,
+so NC's leg is carried as an expiring exception (owner: the platform owner; expires on the
+earlier of NC becoming live or 2026-12-31) rather than as a silent gap. Nothing computes
+that expiry.
+"""
