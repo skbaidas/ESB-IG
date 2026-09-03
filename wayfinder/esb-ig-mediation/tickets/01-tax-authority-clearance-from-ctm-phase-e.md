@@ -3,10 +3,11 @@ id: EM01
 title: "Tax-authority clearance — five questions from CTM Phase E"
 labels: ["wayfinder:grilling", "ready-for-human"]
 hitl: true
-status: open
+status: closed
 blocked-by: []
 blocks: []
 assignee: skbaidas@gmail.com
+resolved: 2026-08-05
 created: 2026-08-04
 raised-by: "CTM Phase E — PE19, PE10"
 ---
@@ -141,6 +142,89 @@ it, CTM will not build one.
 - [ ] Any shape constraints ESB/IG imposes (timeout, idempotency ownership, retry ownership) are
       named, because CTM's `PE10` builds to them.
 - [ ] The answer is carried back to CTM's `PE19`, which closes on it.
+
+## Resolution — 2026-08-05
+
+Answered by the platform owner, who holds ESB/IG scope. Ratified as
+[CTM ADR-0017 — *Clearance is its own connector class, it never retries, and CTM emits the UBL*](../../../../CTM/docs/adr/0017-clearance-is-its-own-connector-class-and-never-retries.md),
+recorded here in the same act because a decision spanning two sub-systems has to live in both.
+
+**Four of the five questions were one question.** Q1, Q2, Q3 and Q4 all turn on whether `CIG-10`
+park-and-retry applies to clearance. It does not.
+
+### Q1 · Q4 — clearance is its own connector class, and it never retries
+
+`CIG-10` is right for ordinary integrations and is the one behaviour that converts an operational
+fault into a **regulatory** one here. So clearance gets a connector class whose defining property is
+**no automatic retry and no parking**.
+
+**`BRK-15`'s idempotency window is not the answer**, and this is the reasoning rather than the
+ruling: a bounded window mitigates against a counterparty that deduplicates, and whether JoFotara
+does is precisely what cannot be verified. A mitigation whose premise is unverifiable is not a
+control.
+
+**The business key is the caller's.** CTM carries it on every submission, so that if the authority
+does deduplicate, it can. Written down here because CTM asked for it to be.
+
+**Not by configuration.** A `park_and_retry: false` flag was considered and refused — a regulatory
+safety property must not live in a value somebody can set wrong. `CONN-02`'s config-not-code promise
+is about *connector behaviour*, not about whether a safety control is present.
+
+### Q2 · Q3 — inline, and there is therefore no fourth state
+
+The CIG returns the outcome **inline**: `cleared`, `rejected` with the authority's reason, or
+`transport-failed`. With parking off, the *parked* state Q3 identified does not arise, so **CTM keeps
+`drafted → cleared → approved`** and a failed clearance leaves the invoice `drafted` with the attempt
+recorded.
+
+**The residual risk is named rather than closed.** Turning off retry removes duplicates on the retry
+path, **not on the timeout path** — nobody can distinguish *never arrived* from *cleared, response
+lost*. What it buys is a person between the uncertainty and the second submission. Re-submission is
+an operator act; **no status pre-check is assumed**, because no JoFotara status endpoint is known to
+exist. The open ISTD question is what would upgrade it.
+
+### Q5 — CTM emits the UBL, so the mapping engine is not on this path
+
+**CTM builds the finished UBL 2.1 document and the CIG transports it** — signing, auth, dispatch and
+the response leg. A mapping engine translates *between* formats; CTM emits the final one, and
+`c0022` already built the invoice's legal face.
+
+So this needs **no mapping flow, no document-catalogue entry, and no dependency on `CONN-03`** —
+whose catalogue entry this repository's own plan records as *fog, graduates after the model lands*.
+
+**Q5 asked for a date and the honest answer is that there is none** — no date appears anywhere in
+ESB/IG's plan, and phases open on events by design. That is exactly why this route was chosen:
+**six CTM tickets leave the Phase C critical path** rather than waiting on undated fog.
+
+**The boundary is not generalised.** Whether *CTM owns the legal instrument and ESB/IG owns how it
+travels* holds for Saudi Arabia or UAE Peppol is **left open deliberately**. This is a
+Jordan-shaped decision and the next regime re-decides. If the mapping engine lands first, the trade
+is visible in ADR-0017's alternatives.
+
+### Q5b — two artefacts, and ESB/IG ships both
+
+`CONN-08`'s dry-run is a **mode of a configured connector** that validates without dispatching. A
+**conformance double** is an *implementation of the protocol shipped with it*, so a consumer can test
+with no connector at all. Different purposes, both needed.
+
+**The clearance double is ESB/IG's**, on the rule that the double is part of the interface —
+inheriting the pattern from `InMemoryBroker`, exported from `backend.esb_ig` alongside the protocol.
+CTM will not build one.
+
+### Shape constraints on CTM, as `PE10` asked for
+
+- Idempotency/business key: **CTM's**, on every submission.
+- Retry: **nobody's automatically.** Re-submission is a deliberate CTM act.
+- Timeout: the call is bounded and a timeout returns `transport-failed`; the invoice stays `drafted`.
+- **Three-decimal JOD is accepted as CTM stated it.** No mapping layer exists on this path to
+  normalise amounts, which removes the rounding hazard CTM raised rather than mitigating it.
+
+### What this ticket does NOT settle
+
+**The ISTD schema gap is untouched.** JoFotara's XSD, validation rules and error codes are published
+nowhere on a Jordanian government domain. That is a separate counterparty and a separate question,
+and this answer must not be read as covering it — a reader who conflates the two will discount one
+along with the other.
 
 ## Notes
 
