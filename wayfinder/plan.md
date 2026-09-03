@@ -36,6 +36,36 @@ below **extends** it. Build sequence: `resolved →`
 - Confirm the seed's envelope transport, at-least-once, dedupe-on-`event_id`, per-channel DLQ carry
   forward green against a real RabbitMQ.
 
+> **Graduation terms agreed 2026-08-05 —
+> [CTM ADR-0019](../../CTM/docs/adr/0019-the-terms-the-esb-ig-seed-graduates-on.md).** Move-and-wire
+> with no rewrite is confirmed, and **CTM's transport evidence transfers rather than being re-earned**
+> — `3 passed` against RabbitMQ 4.3.4: redelivery after a consumer crash, **server-side** DLQ routing,
+> priority ordering across two concurrent consumers. It transfers **with its limit attached**: that
+> suite *skips* wherever no broker exists, so the green says nothing about a machine without one.
+>
+> **The second bullet above is therefore already met on one machine and not on this repository's CI**,
+> which does not exist yet. That is the honest reading, and re-earning it here would mean *not-run*
+> for an unknown period rather than a stronger claim.
+>
+> **One precondition before the move**, and it is small because it was measured rather than assumed:
+> the seed's entire inbound dependency outside itself is **three names** —
+> `shipped_default_credential`, `ConfigurationError`, `CtmError`. `backend/tests/broker/` imports
+> nothing outside the seed and **reads no LOV at all**, so the graduation gate's *"copies the root
+> conftest and `config/lov/`"* disclosure is generic to its harness and near-vacuous here (it is true
+> of the **IAM** seed, a different graduation).
+>
+> - **ESB/IG defines its own error base.** A graduated sub-system raising a `CtmError` is wrong on
+>   day one; that is a rename owed regardless.
+> - **`shipped_default_credential` stays one control** — it is CTM ADR-0005's startup refusal of a
+>   well-known credential pair, and two copies is two controls. **Vendored with provenance**, and the
+>   vendored file states plainly that **nothing detects divergence**: if CTM hardens the check, this
+>   copy does not move and nothing turns red. A known gap under §11.3, not a covered one.
+>
+> Three disclosures are accepted as **inherited risk**: the graduation gate's unmeasured
+> false-positive rate under load, that its exit 0 is necessary but not sufficient (a lane must read
+> the artefact, never the status code), and that the migration lineage is reported by filename match
+> rather than asserted.
+
 ## Phase B — API Gateway plane (the mediation mandate)
 
 - **"All boundary-crossing APIs & integrations go through ESB/IG"** — scope, the in-process hot-path
