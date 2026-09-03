@@ -172,6 +172,19 @@ jobs:
           PY
           echo "--- derived from pyproject.toml [project.optional-dependencies].dev ---"
           cat dev-requirements.txt
+
+          # AN EMPTY FILE HERE INSTALLS NOTHING AND EXITS 0. The heredoc above is
+          # a redirect, so a raised tomllib error (malformed pyproject, renamed
+          # group) still creates `dev-requirements.txt` — empty — and
+          # `pip install -r` on an empty file succeeds. Every lane after this
+          # would then fail on "ruff: command not found", which reads as a broken
+          # toolchain rather than as a broken config, and `steps.install.outcome`
+          # would say `success`. Fail here instead, where the cause is.
+          if [ ! -s dev-requirements.txt ]; then
+            echo "FAIL: derived no dev requirements from pyproject.toml — is [project.optional-dependencies].dev still there?" >&2
+            exit 1
+          fi
+
           python -m pip install --upgrade pip
           python -m pip install -r dev-requirements.txt
 
@@ -216,6 +229,36 @@ jobs:
       - name: Catalogue gate (envelope · axis rule) — BLOCKING
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: python scripts/check_catalogue.py
+
+      # WITHOUT THIS STEP THE COMMITTED ARTEFACT IS A SECOND RENDERING WITH
+      # NOTHING RECONCILING IT. The evidence step above regenerated
+      # `evidence/gate-catalogue.json` in the workspace and the upload carries
+      # that fresh copy — but the copy IN THE TREE, which is what a reader opens
+      # and what §11.3 calls the evidence, is never compared to it and never
+      # written back. So a catalogue edit that moves `types_judged`, or a change
+      # to `not_verified_here`, leaves the committed artefact describing a run
+      # that no longer happens, under a green tick. That is ADR-0015's defect
+      # exactly, and CTM has a whole gate for the class.
+      #
+      # The reconciliation is `git diff` rather than a new script: the fresh copy
+      # is already on disk, so the comparison is free and there is nothing to
+      # keep in step. Line endings are normalised by `.gitattributes` (`* text=
+      # auto`), which is what makes a byte-for-byte diff safe across platforms.
+      #
+      # The remedy when this reddens is to run `python scripts/check_catalogue.py
+      # --json` and commit the result — never to edit the JSON, which would make
+      # the artefact a third rendering. The failure message says so, because a
+      # gate that fails without naming a remedy teaches people to work around it.
+      - name: Committed catalogue evidence is current — BLOCKING
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        shell: bash
+        run: |
+          if ! git diff --exit-code -- evidence/gate-catalogue.json; then
+            echo "FAIL: evidence/gate-catalogue.json in the tree disagrees with a fresh run of the gate." >&2
+            echo "Remedy: python scripts/check_catalogue.py --json, then commit the result. Do not hand-edit the JSON." >&2
+            exit 1
+          fi
+          echo "evidence/gate-catalogue.json matches a fresh run."
 
       # ── The broker ───────────────────────────────────────────────────────────
       # WHAT THIS IS: a check that the service container's port is reachable from

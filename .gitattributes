@@ -1,0 +1,13 @@
+# Line endings are NORMALISED IN THE INDEX and left to the platform in the working
+# tree. Without this, whether a file is stored LF or CRLF depends on each
+# contributor's global `core.autocrlf` — a setting nothing in this repository can
+# see, and the Format lane's result depends on it: `ruff format --check` compares
+# against what the installed formatter would produce, and the committed evidence
+# artefact is reconciled byte-for-byte against a fresh run in CI. Both are
+# currently green because `ruff` auto-detects line endings and every contributor
+# so far has had `autocrlf=true`. Neither is a property anyone chose, which is why
+# this file exists.
+#
+# `git add --renormalize .` was a no-op when this landed: the index already held
+# LF throughout.
+* text=auto
