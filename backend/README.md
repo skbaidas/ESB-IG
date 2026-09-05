@@ -39,13 +39,23 @@ them as one. `pyproject.toml` maps `backend/esb_ig/` onto top-level `esb_ig` for
 only, so `PACKAGES_ROOT = "backend"` in `scripts/check_boundary.py` stays correct — it
 describes the tree, which is what that gate reads.
 
-**What this costs the move, and it is not nothing:** intra-package imports must be
+**What this cost the move, and it was not nothing:** intra-package imports must be
 **relative** (`from .envelope import Envelope`). A relative import resolves under *both*
-names, which is what makes these two choices independent rather than merely reconciled.
-CTM's copies currently import each other absolutely as `from backend.esb_ig.envelope import
-...`, and that spelling cannot survive installation — once the directory is
-`site-packages/esb_ig/` there is no `backend` above it. So the move **does** carry an import
-rewrite, and an earlier note here claiming otherwise was the same error in another place.
+names, which is what makes these two choices independent rather than merely reconciled. An
+absolute `from backend.esb_ig.envelope import ...` cannot survive installation — once the
+directory is `site-packages/esb_ig/` there is no `backend` above it — so the move **did**
+carry an import rewrite, and an earlier note here claiming otherwise was the same error in
+another place.
+
+**Paid before the move rather than during it, which is why the move was small.** CTM
+converted the seed's 15 intra-package imports to relative form on 2026-09-03, with the whole
+CTM suite still running over them, so the conversion was provable as a no-op at the moment
+it was made rather than asserted afterwards. `test_seed_is_position_independent.py` travelled
+with the seed and is what keeps it true here. The one absolute import that deliberately
+stayed — `shipped_default_credential` from CTM's shared kernel, kept visible to the boundary
+gate on purpose — was settled at the boundary instead: `N3` forbids reaching back into CTM,
+so the function was **copied** into `esb_ig/lib/credentials.py`, whose docstring names its
+origin and says the two can now drift.
 
 Run the gate — it is blocking, and a red gate is the only enforcement this repo has
 (no branch protection, platform `CLAUDE.md` §12):

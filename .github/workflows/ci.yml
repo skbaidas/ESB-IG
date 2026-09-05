@@ -528,15 +528,41 @@ jobs:
                ;;
           esac
 
+          # THE COUNTS GO IN THE ARTEFACT, because the exit code is not the
+          # verdict. §11.3's rule is "read the SKIP count, never the exit code
+          # alone", and until W2-T10 step (a) this artefact carried no count at
+          # all — a reader had to open `test-suite.txt` to learn whether a green
+          # covered 86 tests or 3. Parsed from pytest's own summary line rather
+          # than counted here: a second counter is a second rendering.
+          passed=$(grep -oE '[0-9]+ passed' test-suite.txt | tail -1 | grep -oE '[0-9]+' || true)
+          skipped=$(grep -oE '[0-9]+ skipped' test-suite.txt | tail -1 | grep -oE '[0-9]+' || true)
+          : "${passed:=0}"
+          : "${skipped:=0}"
+
+          # A `needs_broker` SKIP IS A FAILURE HERE, and this is the assertion
+          # `pyproject.toml`'s marker has always promised — "CI asserts these do
+          # NOT skip" — and never made. The failure mode it catches is silent:
+          # the driver import is guarded and lazy, so with `pika` absent nothing
+          # raises, all 13 broker tests skip, and the lane goes green over a
+          # server it never spoke to. Matched on the conftest's own skip reason
+          # rather than on the count, so an unrelated skip stays legal.
+          broker_skips=$(grep -c 'ESB_IG_TEST_BROKER_URL is unset' test-suite.txt || true)
+          : "${broker_skips:=0}"
+
           cat > gate-tests.json <<JSON
           {
             "gate": "tests",
             "outcome": "$outcome",
             "detail": "$detail",
             "pytest_exit_code": $status,
+            "passed": $passed,
+            "skipped": $skipped,
+            "needs_broker_skips": $broker_skips,
             "not_verified_here": [
-              "WHILE THE OUTCOME IS not-run, NOTHING ABOUT THIS SUB-SYSTEM IS TESTED HERE. The envelope, the broker protocol and the transport adapter all still live in CTM's tree and graduate under W2-T10.",
-              "This lane is self-retiring: the first test_*.py under backend/tests turns it blocking with no configuration change. A not-run outcome after that date would mean the suite was deleted, not that none was written."
+              "THE GATEWAY PLANE IS NOT TESTED HERE BECAUSE IT IS NOT BUILT. Mediated egress, the SSRF egress guard (CTM section 14 EGRESS-PROSE), the REST/SOAP/EDI handlers and the hybrid agent are specified and unimplemented. A green here says the mediation LIBRARY holds; it never says the sub-system exists.",
+              "NO EVENT IS PRODUCED. A transport adapter is a mechanism, not a producer. CTM's four ctm.tenant.* producers remain held and unbuilt (CTM section 14 PRODUCER-PROSE).",
+              "THE CONSUMER SIDE IS NOT EXERCISED. CTM is not installed here, still carries its own copy of this seed, and still imports it as backend.esb_ig. W2-T10 step (c) has not happened and cannot while this repository is private with no credential for a git+https pin.",
+              "This lane is self-retiring and HAS RETIRED: the suite arrived under W2-T10 step (a) on 2026-09-05, so pytest no longer exits 5. A not-run outcome from here on would mean the suite was DELETED, not that none was written."
             ]
           }
           JSON
@@ -548,6 +574,15 @@ jobs:
             echo "pytest collected no tests under \`backend/tests\` (exit 5). **NOT-RUN is not a pass** (platform \`CLAUDE.md\` §11.3)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+
+          if [ "$broker_skips" -ne 0 ]; then
+            echo "FAIL: $broker_skips test(s) skipped because ESB_IG_TEST_BROKER_URL was unset, with a broker service container running." >&2
+            echo "The transport semantics — redelivery, server-side dead-letter routing, priority across two consumers — are what only a real server can perform." >&2
+            echo "A skip is NOT-RUN, which is not a pass (platform CLAUDE.md 11.3)." >&2
+            exit 1
+          fi
+
+          echo "### Tests: $outcome — $passed passed, $skipped skipped" >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
 
       # `if-no-files-found: error`, NOT `warn`: a missing artefact means a gate
