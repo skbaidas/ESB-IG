@@ -539,13 +539,26 @@ jobs:
           : "${passed:=0}"
           : "${skipped:=0}"
 
-          # A `needs_broker` SKIP IS A FAILURE HERE, and this is the assertion
-          # `pyproject.toml`'s marker has always promised — "CI asserts these do
-          # NOT skip" — and never made. The failure mode it catches is silent:
-          # the driver import is guarded and lazy, so with `pika` absent nothing
-          # raises, all 13 broker tests skip, and the lane goes green over a
-          # server it never spoke to. Matched on the conftest's own skip reason
-          # rather than on the count, so an unrelated skip stays legal.
+          # ANY SKIP IS A FAILURE HERE, and the blocking condition is the COUNT
+          # rather than the reason. `pyproject.toml`'s `needs_broker` marker has
+          # always promised "CI asserts these do NOT skip" and never made the
+          # assertion. The failure mode is silent: the driver import is guarded
+          # and lazy, so with `pika` absent nothing raises, all 13 broker tests
+          # skip, and the lane goes green over a server it never spoke to.
+          #
+          # THE FIRST VERSION OF THIS GUARD KEYED ON THE CONFTEST'S SKIP MESSAGE
+          # so that an unrelated skip stayed legal. That is a gate whose subject
+          # is a SENTENCE IN ANOTHER FILE: reword that `pytest.skip()` and this
+          # silently counts zero forever, reintroducing the exact hole it exists
+          # to close — and it would do so from an edit to a file nobody would
+          # connect to this lane. Same defect class as a `not_verified_here`
+          # literal that stops being true.
+          #
+          # So the count blocks and the reason only DIAGNOSES. Every one of this
+          # repository's tests is expected to run: the AST walks need nothing and
+          # the broker tests have a service container. A future test that must
+          # skip is a deliberate change to this line, which is the right place
+          # for that decision to be visible.
           broker_skips=$(grep -c 'ESB_IG_TEST_BROKER_URL is unset' test-suite.txt || true)
           : "${broker_skips:=0}"
 
@@ -575,10 +588,15 @@ jobs:
             exit 0
           fi
 
-          if [ "$broker_skips" -ne 0 ]; then
-            echo "FAIL: $broker_skips test(s) skipped because ESB_IG_TEST_BROKER_URL was unset, with a broker service container running." >&2
-            echo "The transport semantics — redelivery, server-side dead-letter routing, priority across two consumers — are what only a real server can perform." >&2
-            echo "A skip is NOT-RUN, which is not a pass (platform CLAUDE.md 11.3)." >&2
+          if [ "$skipped" -ne 0 ]; then
+            echo "FAIL: $skipped test(s) skipped. A skip is NOT-RUN, which is not a pass (platform CLAUDE.md 11.3)." >&2
+            if [ "$broker_skips" -ne 0 ]; then
+              echo "  $broker_skips of them skipped because ESB_IG_TEST_BROKER_URL was unset, with a broker service container running." >&2
+              echo "  Check that the 'broker' extra is still installed: the driver import is guarded and lazy, so a missing pika skips rather than errors." >&2
+              echo "  The transport semantics — redelivery, server-side dead-letter routing, priority across two consumers — are what only a real server can perform." >&2
+            else
+              echo "  None names the broker URL, so this is a skip nobody has ruled on. Read test-suite.txt for the reasons." >&2
+            fi
             exit 1
           fi
 
