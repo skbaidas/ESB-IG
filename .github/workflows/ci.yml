@@ -15,21 +15,26 @@ name: esb-ig-ci
 # WHAT THIS WORKFLOW DOES NOT PROVE, stated plainly because a green tick is read
 # as proof of much more than it is:
 #
-#   * NO EVENT IS PRODUCED AND NOTHING IS TRANSPORTED. This repository holds a
-#     catalogue, an ADR and two gates. The broker plane is still CTM's `esb_ig`
-#     seed until W2-T10, and CTM's four `ctm.tenant.*` producers are held and
-#     unbuilt. Adopting a name emits nothing.
+#   * NO EVENT IS PRODUCED. The seed arrived under `W2-T10` step (a), so the
+#     broker plane is now HERE — but a transport adapter is a mechanism, not a
+#     producer. CTM's four `ctm.tenant.*` producers are still held and unbuilt,
+#     and adopting a name emits nothing.
 #
-#   * THERE IS NO SUITE. `backend/tests/` is empty. The Tests lane below reads
-#     pytest's own exit 5 and reports NOT-RUN, which platform `CLAUDE.md` §11.3
-#     says is not a pass. It is self-retiring: the first `test_*.py` to land
-#     turns it into a blocking lane with nothing for anyone to switch on.
+#   * THE SUITE ARRIVED, AND WHAT IT COVERS IS NARROWER THAN "ESB/IG WORKS". It
+#     is the envelope, the broker protocol, its in-memory double, the
+#     conformance pair and the transport adapter's semantics. THE GATEWAY PLANE
+#     — mediated egress, the SSRF guard (CTM §14 EGRESS-PROSE), REST/SOAP/EDI
+#     handlers, the hybrid agent — is specified and NOT BUILT, here or anywhere.
+#     Read the two rows above together: a green suite says the mediation
+#     *library* holds, never that the sub-system exists.
 #
-#   * THE BROKER IS PROVISIONED, NOT EXERCISED. A RabbitMQ 4 service container
-#     runs and its port is probed. That is a claim about a container and a port
-#     mapping. It is NOT the transport suite, which is the thing that would
-#     observe redelivery, dead-letter routing and priority ordering — and which
-#     does not exist here yet.
+#   * STEP (c) HAS NOT HAPPENED. CTM still carries its own copy of this seed and
+#     still imports it as `backend.esb_ig`. Nothing here is yet a dependency of
+#     anything, and CTM cannot pin this repository at all while it is private
+#     (`pip` has no credential for a `git+https` fetch, and both repositories
+#     hold zero secrets). That is the platform owner's decision, recorded on
+#     `W2-T10`, and it is why the graduation is half-done by design rather than
+#     by neglect.
 #
 #   * NOTHING IS CROSS-CHECKED AGAINST CTM. `check_catalogue.py` deliberately
 #     does not read CTM's document: a dual record whose halves are checked
@@ -117,7 +122,7 @@ jobs:
         # the tag here would produce a digest with no provenance anybody in this
         # estate can cite, and — worse — would mean the two repositories claim to
         # test against "RabbitMQ 4" while running two different images.
-        image: rabbitmq@sha256:f3aa266b9f3ee3d06c6658804aa3b8e4474bfc18880dcc20f469995a728c298b
+        image: rabbitmq@sha256:1773ab33af6af1bbae4a3b1070472c863e669806a9ac63a627c02a44b3a59dcf
         env:
           RABBITMQ_DEFAULT_USER: esb_ig_ci
           RABBITMQ_DEFAULT_PASS: esb-ig-ci-throwaway-not-a-deployment
@@ -157,20 +162,36 @@ jobs:
       # `pip install .[dev]` is not available: there is no build-system, for the
       # reason `pyproject.toml` records. `tomllib` is stdlib from 3.11.
       #
-      # THE BROKER EXTRA IS DELIBERATELY NOT INSTALLED. Nothing in this tree
-      # imports `pika`, and installing it would make the extra read as exercised.
-      - name: Install the dev toolchain
+      # THE BROKER EXTRA IS NOW INSTALLED, and was not until `W2-T10` step (a).
+      # This comment read "nothing in this tree imports `pika`, and installing it
+      # would make the extra read as exercised". That was true and is not:
+      # `esb_ig/lib/rabbitmq.py` and the moved transport suite both reach it.
+      #
+      # Leaving it out now would be worse than cosmetic. The driver import is
+      # GUARDED AND LAZY, so a missing `pika` raises no ImportError at
+      # collection — it surfaces at connect time as `BrokerUnavailableError`,
+      # which reads as A BROKER FAULT rather than a missing dependency, and the
+      # `needs_broker` tests would skip against a healthy broker sitting right
+      # there. A skip is not a pass, and a skip with a misleading cause is worse
+      # than a red.
+      - name: Install the dev toolchain and the broker driver
         id: install
         run: |
           python - <<'PY' > dev-requirements.txt
           import pathlib
           import tomllib
 
+          # READ OUT OF THE TABLE, never restated here: a second list of the same
+          # packages is a second rendering that can disagree with the first.
+          GROUPS = ("dev", "broker")
+
           pyproject = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
-          for requirement in pyproject["project"]["optional-dependencies"]["dev"]:
-              print(requirement)
+          extras = pyproject["project"]["optional-dependencies"]
+          for group in GROUPS:
+              for requirement in extras[group]:
+                  print(requirement)
           PY
-          echo "--- derived from pyproject.toml [project.optional-dependencies].dev ---"
+          echo "--- derived from pyproject.toml [project.optional-dependencies]: dev + broker ---"
           cat dev-requirements.txt
 
           # AN EMPTY FILE HERE INSTALLS NOTHING AND EXITS 0. The heredoc above is
@@ -181,7 +202,7 @@ jobs:
           # toolchain rather than as a broken config, and `steps.install.outcome`
           # would say `success`. Fail here instead, where the cause is.
           if [ ! -s dev-requirements.txt ]; then
-            echo "FAIL: derived no dev requirements from pyproject.toml — is [project.optional-dependencies].dev still there?" >&2
+            echo "FAIL: derived no requirements from pyproject.toml — are [project.optional-dependencies] dev and broker still there?" >&2
             exit 1
           fi
 
@@ -447,7 +468,7 @@ jobs:
               "gate": "broker-reachability",
               "outcome": outcome,
               "detail": detail,
-              "image": "rabbitmq@sha256:f3aa266b9f3ee3d06c6658804aa3b8e4474bfc18880dcc20f469995a728c298b",
+              "image": "rabbitmq@sha256:1773ab33af6af1bbae4a3b1070472c863e669806a9ac63a627c02a44b3a59dcf",
               "not_verified_here": [
                   "NO AMQP IS SPOKEN. This opens a socket. It does not connect as a client, "
                   "declare a queue, publish, or consume.",
