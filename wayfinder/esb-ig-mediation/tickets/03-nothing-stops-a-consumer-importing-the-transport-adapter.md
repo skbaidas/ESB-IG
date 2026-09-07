@@ -186,6 +186,24 @@ first entry, so a green cannot be read as "a consumer is prevented".
 > this control lapses silently. Recorded on `W2-T10` as well as here, because a bill written
 > in only one of two repositories is a bill one reader will not see.
 
+> **PAID EARLY, 2026-09-07 — and the bill above would not have paid it.** Discharged in CTM
+> ahead of step (c) rather than during it, because a control that has to be remembered at the
+> exact moment somebody is solving a deployment problem is the one this ticket exists about.
+>
+> **The correction is the part worth carrying**: adding the string alone is a **no-op**.
+> CTM's import graph comes from `check_boundary.walk_imports`, which yields imports of
+> `backend.*` packages only — an installed `esb_ig.transport` produces no edge, so the ban is
+> never consulted no matter what is in the set. The bill named a necessary step and called it
+> sufficient, which is §6.1's defect one level down: a record naming a remedy it had not
+> followed through. CTM now enumerates **both** spellings and walks the post-move one
+> separately, keyed on the ban rather than on its `GRADUATING_SEEDS` tuple — the seed leaves
+> that tuple the day step (c) completes, so a detector driven by it would have expired a
+> second time at the same moment, with a passing test.
+>
+> Nothing in **this** repository changed: `check_published_surface.py` reads the package's own
+> surface and never depended on the spelling a consumer uses. See `W2-T10`, *"Step (c)'s bill,
+> item 2 — DISCHARGED"*.
+
 ### 6.5 What was built
 
 `scripts/check_published_surface.py` — three static rules read by AST, one asserted at
