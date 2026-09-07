@@ -26,6 +26,23 @@ configuration, or a factory ESB/IG publishes for the purpose. Neither route
 names this module in a CTM file, which is what makes the graduation a file
 operation.
 
+**Two gates now hold that rule, and this paragraph is no longer the only place
+it lives** (`EM03`). Neither is the control on its own:
+
+* CTM's `check_graduation.py` refuses a **consumer's import** —
+  `stranded-transport-import`, keyed on `NON_CONSUMER_ENTRY_POINTS`. It is
+  spelled in the PRE-MOVE dotted name and **lapses at W2-T10 step (c)** unless
+  that constant gains the post-move spelling.
+* this repository's `scripts/check_published_surface.py` refuses the
+  **package's own export**: the root may not reach this module by any spelling,
+  and a fresh `import esb_ig` may not leave it in `sys.modules`. That half
+  survives the move, because it reads this repository.
+
+**Neither prevents a determined consumer, and neither claims to.** Python has no
+private modules, so `import esb_ig.transport` works from anywhere. What is
+refused is the adapter arriving on the published surface *silently* — which is
+not hypothetical, since it sat there until W2-T20.
+
 **A curated re-export, deliberately not a file move.** The implementation stays
 in `lib/rabbitmq.py`, where the transport's own tests reach its internals under
 `backend/README.md` rule 2 — the topology, the publish properties, the queue

@@ -238,6 +238,7 @@ jobs:
         run: |
           python scripts/check_boundary.py --json > gate-boundary.json || true
           python scripts/check_catalogue.py --json || true
+          python scripts/check_published_surface.py --json > gate-published-surface.json || true
 
       - name: Boundary gate (N3 / deep modules) — BLOCKING
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
@@ -250,6 +251,24 @@ jobs:
       - name: Catalogue gate (envelope · axis rule) — BLOCKING
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: python scripts/check_catalogue.py
+
+      # `EM03`. W2-T10 ratifies that ESB/IG publishes exactly three things and that
+      # "the RabbitMQ adapter is NOT published". Until now that lived in a docstring,
+      # and the adapter SAT ON THE ROOT SURFACE until W2-T20 — so it is a regression
+      # that has already happened once, caught by nothing.
+      #
+      # WHAT IT DOES NOT CLAIM: Python has no private modules, so nothing here stops a
+      # consumer writing `import esb_ig.transport`. The consumer-side half is CTM's
+      # `check_graduation.py` (`stranded-transport-import`), which already exists and is
+      # spelled in the PRE-MOVE dotted name. This half refuses the adapter arriving on the
+      # published surface silently, and it is the half that survives the move.
+      #
+      # Exit 2 is a CONTROL FAILURE, as for the catalogue gate: the negative control runs
+      # on every invocation, and a detector that stopped firing is a different repair from
+      # a finding.
+      - name: Published surface (EM03 · the adapter is not published) — BLOCKING
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: python scripts/check_published_surface.py
 
       # WITHOUT THIS STEP THE COMMITTED ARTEFACT IS A SECOND RENDERING WITH
       # NOTHING RECONCILING IT. The evidence step above regenerated
@@ -615,6 +634,7 @@ jobs:
             gate-boundary.json
             gate-broker.json
             gate-import-name.json
+            gate-published-surface.json
             gate-tests.json
             test-suite.txt
             evidence/gate-catalogue.json
