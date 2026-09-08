@@ -14,10 +14,9 @@ two grounds and no others:
    private repository every consumer's CI needs a long-lived read token, one per consuming
    repository, each of which has to be issued, stored and rotated. A public URL needs none.
 2. **Branch protection.** The hosting provider refuses rulesets on private repositories on
-   this plan and returns *"Upgrade … or make this repository public"*. The platform has
-   carried *"no gate can technically block a merge"* as an accepted, disclosed residual
-   since its first analysis. Publication is the first structural cure available for it, and
-   the ruleset is enabled as part of the same act rather than left as an option.
+   this plan and returns *"Upgrade … or make this repository public"*. Publication is what
+   makes protection available here at all, and the ruleset is enabled as part of the same
+   act rather than left as an option.
 
 **Publication is not reversible in any way that matters.** What has been public can have
 been cloned before it is made private again. This was weighed and accepted.
@@ -43,6 +42,11 @@ still in the object database, which is why the working tree is not the subject.
   credential is *refused*; developer paths of the form `D:\PMO\…` in historical blobs,
   absent from the current tree; and the owner's own e-mail address, which is in the author
   metadata of every commit and cannot be removed without rewriting history.
+
+**The published surface is a strict subset of what was swept.** The sweep read every
+object reachable from every ref in the authoring clone — two branches. The remote holds one,
+`refs/heads/main`, and no tags, confirmed by `git ls-remote` immediately before publication.
+Nothing reaches the public that the instrument did not read.
 
 The sweep's output is committed under [`evidence/`](./evidence/). The decision, its
 preconditions and what it does not settle are recorded in the consuming platform's
