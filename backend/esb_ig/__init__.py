@@ -68,6 +68,7 @@ moving a folder.
 Built by ticket 14.
 """
 
+from .lib.base import EsbIgError
 from .lib.broker import (
     Broker,
     Consumer,
@@ -86,6 +87,7 @@ __all__ = [
     "Consumer",
     "DeadLetter",
     "DeliveryReport",
+    "EsbIgError",
     "IdempotencyStore",
     "InMemoryBroker",
     "deduplicating",

@@ -84,6 +84,7 @@ RATIFIED_SURFACE: Final[tuple[str, ...]] = (
     "Consumer",
     "DeadLetter",
     "DeliveryReport",
+    "EsbIgError",
     "IdempotencyStore",
     "InMemoryBroker",
     "deduplicating",
