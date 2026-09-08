@@ -1,0 +1,40 @@
+# Full-history publication sweep — ESB-IG
+#
+# Precondition 1 of the platform owner's ruling on CTM W2-T10 step (c):
+# publication is fail-closed until a history scanner has read every commit.
+# The subject is the OBJECT DATABASE, never the working tree.
+#
+# repository : skbaidas/ESB-IG
+# head       : f489468465fd12f670eacf4c7090c99256e17147
+# branches   : esb-ig-mediation-clearance main 
+# commits    : 22
+# swept_at   : 2026-09-08T12:11:22Z
+# instrument : detect-secrets 1.5.0, all shipped plugins, over every unique blob
+# machine    : 4802-sbaidas
+
+blobs materialised: 87 from D:\PMO\Phase 1\ESB-IG
+
+== named-disclosure pass: 19 hit(s)
+  email-address        0b6c9945 backend/tests/test_broker.py: admin@broker.internal
+  email-address        0b6c9945 backend/tests/test_broker.py: ctm_broker_user@broker.internal
+  email-address        0b6c9945 backend/tests/test_broker.py: guest@broker.internal
+  email-address        0b6c9945 backend/tests/test_broker.py: guest@secret-broker.internal
+  email-address        0b6c9945 backend/tests/test_broker.py: rabbit@broker.internal
+  email-address        0b6c9945 backend/tests/test_broker.py: test-only-not-a-real-password@broker.internal
+  internal-hostname    0b6c9945 backend/tests/test_broker.py: broker.internal
+  internal-hostname    0b6c9945 backend/tests/test_broker.py: secret-broker.internal
+  pmo-tree-path        1dd451a6 CLAUDE.md: D:\PMO\
+  pmo-tree-path        337e40ab CLAUDE.md: D:\PMO\
+  pmo-tree-path        39113eac CLAUDE.md: D:\PMO\
+  pmo-tree-path        4c3b4b91 CLAUDE.md: D:\PMO\
+  pmo-tree-path        85cfe28f wayfinder/ESB-IG-developed-design.md: D:\PMO\
+  pmo-tree-path        a4682f92 backend/tests/test_published_surface_gate.py: D:\PMO\
+  pmo-tree-path        af17f7aa wayfinder/plan.md: D:\PMO\
+  pmo-tree-path        cb6136f2 wayfinder/map.md: D:\PMO\
+  pmo-tree-path        cce637d3 wayfinder/ESB-IG-developed-design.md: D:\PMO\
+  pmo-tree-path        d803f4b6 wayfinder/tickets/01-esb-ig-build-sequence.md: D:\PMO\
+  pmo-tree-path        f570c6e6 wayfinder/plan.md: D:\PMO\
+
+== detect-secrets pass: 0 candidate(s) across 0 file(s)
+
+workdir: (a temporary directory; not part of the record)

@@ -1,0 +1,55 @@
+# NOTICE — what publishing this repository does and does not mean
+
+This repository is **public and proprietary**. Those two words are not in tension and the
+combination is deliberate, so it is stated here rather than left to be inferred from the
+absence of a permissive licence.
+
+## Public
+
+Anyone can read this source, clone it, and watch it change. That was decided knowingly, on
+two grounds and no others:
+
+1. **Consumption without a credential.** The platform's other sub-systems install this
+   package by pinning a commit — `pip install git+https://…@<40-character sha>`. Against a
+   private repository every consumer's CI needs a long-lived read token, one per consuming
+   repository, each of which has to be issued, stored and rotated. A public URL needs none.
+2. **Branch protection.** The hosting provider refuses rulesets on private repositories on
+   this plan and returns *"Upgrade … or make this repository public"*. The platform has
+   carried *"no gate can technically block a merge"* as an accepted, disclosed residual
+   since its first analysis. Publication is the first structural cure available for it, and
+   the ruleset is enabled as part of the same act rather than left as an option.
+
+**Publication is not reversible in any way that matters.** What has been public can have
+been cloned before it is made private again. This was weighed and accepted.
+
+## Proprietary
+
+**No licence is granted.** See [`LICENSE`](./LICENSE). Readable is not the same as usable:
+there is no right to use, copy, modify or redistribute this software, and none arises from
+its being visible. This is *source-available*, and the distinction from open source is the
+point of this file.
+
+## What was checked before publishing
+
+The full object history — every commit on every branch, not the working tree — was swept by
+instrument before this repository was made public. A secret removed in a later commit is
+still in the object database, which is why the working tree is not the subject.
+
+- **A secrets scanner over every historical blob: zero candidates.**
+- **A named-disclosure sweep** for tenant names, partner names, entity names, internal
+  hostnames, contact numbers and non-public addresses: **zero** in every category.
+- Three residues were found, judged, and are recorded rather than removed: hostnames under
+  `broker.internal`, which are unreachable documentation fixtures the tests use to prove a
+  credential is *refused*; developer paths of the form `D:\PMO\…` in historical blobs,
+  absent from the current tree; and the owner's own e-mail address, which is in the author
+  metadata of every commit and cannot be removed without rewriting history.
+
+The sweep's output is committed under [`evidence/`](./evidence/). The decision, its
+preconditions and what it does not settle are recorded in the consuming platform's
+architecture decision record for this act.
+
+## What is published here
+
+The mediation sub-system's source, its tests, its gates and its CI; its architecture
+decision records, its planning documents and its issue tracker. **No credential, no
+customer data, and no third party's material.**
