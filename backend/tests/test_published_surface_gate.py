@@ -30,28 +30,29 @@ import pytest
 
 from scripts import check_published_surface as gate
 
-# A minimal package root that satisfies the gate. Written as source rather than imported so
-# the negative controls below can mutate exactly one thing about it.
-_CLEAN_ROOT = '''\
-"""A package docstring."""
+# A minimal package root that satisfies the gate. Written as SOURCE rather than imported, so
+# the negative controls below can mutate exactly one thing about it — but its `__all__` is
+# DERIVED from the gate's ratified tuple rather than retyped beside it.
+#
+# It was retyped until 2026-09-08, and that is `DT08`'s defect in miniature: two places
+# holding one fact, one of them movable alone. It moved. Publishing `EsbIgError` on the root
+# surface changed `RATIFIED_SURFACE` and left this copy behind, and three tests went red
+# reporting `published-surface-changed` against the sample whose whole job is to be clean —
+# a defect in the sample, reported as a defect in the gate. Deriving it keeps the mutability
+# the comment above asks for and removes the second rendering.
+_CLEAN_IMPORTS = (
+    '"""A package docstring."""\n'
+    "\n"
+    "from .lib.base import EsbIgError\n"
+    "from .lib.broker import Broker, Consumer, DeadLetter, DeliveryReport, InMemoryBroker\n"
+    "from .lib.consumer import IdempotencyStore, deduplicating\n"
+    "from .lib.errors import BrokerError, BrokerUnavailableError, ChannelError\n"
+    "\n"
+)
 
-from .lib.broker import Broker, Consumer, DeadLetter, DeliveryReport, InMemoryBroker
-from .lib.consumer import IdempotencyStore, deduplicating
-from .lib.errors import BrokerError, BrokerUnavailableError, ChannelError
+_CLEAN_ALL = "__all__ = [\n" + "".join(f'    "{_n}",\n' for _n in gate.RATIFIED_SURFACE) + "]\n"
 
-__all__ = [
-    "Broker",
-    "BrokerError",
-    "BrokerUnavailableError",
-    "ChannelError",
-    "Consumer",
-    "DeadLetter",
-    "DeliveryReport",
-    "IdempotencyStore",
-    "InMemoryBroker",
-    "deduplicating",
-]
-'''
+_CLEAN_ROOT = _CLEAN_IMPORTS + _CLEAN_ALL
 
 
 class TestTheDeclaredSurface:

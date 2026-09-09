@@ -23,10 +23,21 @@ __all__ = [
     "broker_url_from_environment",
 ]
 
-# One constant, so graduation to the ESB/IG repository is a one-line change
-# rather than a search. The prefix is the deployment's namespace, not the
-# package's: today the seed runs inside CTM.
-BROKER_URL_VARIABLE = "CTM_BROKER_URL"
+# One constant, so graduation to the ESB/IG repository was a one-line change
+# rather than a search — and this is that line, changed.
+#
+# It read `CTM_BROKER_URL` while the seed lived inside CTM, and the rename was
+# deliberately NOT made when the source moved. Doing it then would have left this
+# repository's suite green over `ESB_IG_BROKER_URL` while CTM's identical copy
+# stayed green over `CTM_BROKER_URL` and CTM's deployment still set the old name:
+# two suites passing on two different names, with nothing comparing them.
+#
+# It is made now, in the same change as CTM's step (c), because that is where
+# CTM deletes its copy and its configuration actually moves — so there is no
+# window in which the two disagree. A published sub-system reading a CONSUMER's
+# prefix is wrong on its face: NC and Translation are to read this same variable,
+# and neither of them is CTM.
+BROKER_URL_VARIABLE = "ESB_IG_BROKER_URL"
 
 # Credential pairs a scanner tries first, `guest:guest` being the shipped
 # default of the broker this adapter targets. This lives in code rather than in
